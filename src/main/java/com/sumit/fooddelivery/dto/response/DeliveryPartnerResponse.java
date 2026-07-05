@@ -10,6 +10,10 @@ public class DeliveryPartnerResponse {
 
     private Long id;
 
+    private Long userId;
+
+    private String username;
+
     private String name;
 
     private String phone;

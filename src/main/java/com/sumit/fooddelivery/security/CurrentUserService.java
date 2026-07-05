@@ -1,10 +1,12 @@
 package com.sumit.fooddelivery.security;
 
 import com.sumit.fooddelivery.entity.Customer;
+import com.sumit.fooddelivery.entity.DeliveryPartner;
 import com.sumit.fooddelivery.entity.Restaurant;
 import com.sumit.fooddelivery.entity.User;
 import com.sumit.fooddelivery.enums.UserRole;
 import com.sumit.fooddelivery.repository.CustomerRepository;
+import com.sumit.fooddelivery.repository.DeliveryPartnerRepository;
 import com.sumit.fooddelivery.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -18,6 +20,7 @@ public class CurrentUserService {
 
     private final UserRepository userRepository;
     private final CustomerRepository customerRepository;
+    private final DeliveryPartnerRepository deliveryPartnerRepository;
 
     public User getCurrentUser() {
 
@@ -43,6 +46,18 @@ public class CurrentUserService {
 
         return customerRepository.findByUser_Username(currentUser.getUsername())
                 .orElseThrow(() -> new AccessDeniedException("Customer profile not found for current user"));
+    }
+
+    public DeliveryPartner getCurrentDeliveryPartner() {
+
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() != UserRole.DELIVERY_PARTNER) {
+            throw new AccessDeniedException("Current user is not a delivery partner");
+        }
+
+        return deliveryPartnerRepository.findByUser_Username(currentUser.getUsername())
+                .orElseThrow(() -> new AccessDeniedException("Delivery partner profile not found for current user"));
     }
 
     public boolean hasRole(UserRole role) {
@@ -99,6 +114,27 @@ public class CurrentUserService {
 
         if (!customer.getUser().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("You can access only your own customer profile");
+        }
+    }
+
+    public void requireAdminOrDeliveryPartner(DeliveryPartner deliveryPartner) {
+
+        if (hasRole(UserRole.ADMIN)) {
+            return;
+        }
+
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() != UserRole.DELIVERY_PARTNER) {
+            throw new AccessDeniedException("Only admin or delivery partner can perform this action");
+        }
+
+        if (deliveryPartner.getUser() == null) {
+            throw new AccessDeniedException("Delivery partner profile is not linked to a user");
+        }
+
+        if (!deliveryPartner.getUser().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("You can act only as your own delivery partner profile");
         }
     }
 }

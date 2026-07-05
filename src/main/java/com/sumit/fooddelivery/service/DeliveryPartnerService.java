@@ -4,10 +4,13 @@ import com.sumit.fooddelivery.dto.request.DeliveryPartnerRequest;
 import com.sumit.fooddelivery.dto.response.DeliveryPartnerResponse;
 import com.sumit.fooddelivery.entity.City;
 import com.sumit.fooddelivery.entity.DeliveryPartner;
+import com.sumit.fooddelivery.entity.User;
 import com.sumit.fooddelivery.enums.CityStatus;
 import com.sumit.fooddelivery.enums.DeliveryPartnerStatus;
+import com.sumit.fooddelivery.enums.UserRole;
 import com.sumit.fooddelivery.repository.CityRepository;
 import com.sumit.fooddelivery.repository.DeliveryPartnerRepository;
+import com.sumit.fooddelivery.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,12 +25,21 @@ public class DeliveryPartnerService {
 
     private final DeliveryPartnerRepository deliveryPartnerRepository;
     private final CityRepository cityRepository;
+    private final UserRepository userRepository;
 
     public DeliveryPartnerResponse create(DeliveryPartnerRequest request) {
 
         City city = getActiveCityOrThrow(request.getCityId());
+        User user = getDeliveryPartnerUserOrThrow(request.getUsername());
+
+        if (deliveryPartnerRepository.existsByUser_Id(user.getId())) {
+            throw new IllegalArgumentException(
+                    "Delivery partner profile already exists for username: " + user.getUsername()
+            );
+        }
 
         DeliveryPartner partner = new DeliveryPartner();
+        partner.setUser(user);
         partner.setName(request.getName());
         partner.setPhone(request.getPhone());
         partner.setCity(city);
@@ -58,8 +70,19 @@ public class DeliveryPartnerService {
     public DeliveryPartnerResponse update(Long id, DeliveryPartnerRequest request) {
 
         DeliveryPartner existing = getPartnerOrThrow(id);
-        City city = getActiveCityOrThrow(request.getCityId());
 
+        City city = getActiveCityOrThrow(request.getCityId());
+        User user = getDeliveryPartnerUserOrThrow(request.getUsername());
+
+        deliveryPartnerRepository.findByUser_Username(user.getUsername())
+                .filter(partner -> !partner.getId().equals(id))
+                .ifPresent(partner -> {
+                    throw new IllegalArgumentException(
+                            "Another delivery partner already uses username: " + user.getUsername()
+                    );
+                });
+
+        existing.setUser(user);
         existing.setName(request.getName());
         existing.setPhone(request.getPhone());
         existing.setCity(city);
@@ -97,12 +120,27 @@ public class DeliveryPartnerService {
         return city;
     }
 
+    private User getDeliveryPartnerUserOrThrow(String username) {
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("Delivery partner user not found"));
+
+        if (user.getRole() != UserRole.DELIVERY_PARTNER) {
+            throw new IllegalArgumentException("User must have DELIVERY_PARTNER role");
+        }
+
+        return user;
+    }
+
     private DeliveryPartnerResponse map(DeliveryPartner partner) {
 
         City city = partner.getCity();
+        User user = partner.getUser();
 
         return DeliveryPartnerResponse.builder()
                 .id(partner.getId())
+                .userId(user != null ? user.getId() : null)
+                .username(user != null ? user.getUsername() : null)
                 .name(partner.getName())
                 .phone(partner.getPhone())
                 .cityId(city != null ? city.getId() : null)

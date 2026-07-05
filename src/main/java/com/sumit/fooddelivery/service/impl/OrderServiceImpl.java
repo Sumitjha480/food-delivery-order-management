@@ -227,6 +227,7 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = getOrderForUpdateOrThrow(orderId);
         DeliveryPartner deliveryPartner = getDeliveryPartnerForUpdateOrThrow(deliveryPartnerId);
+        currentUserService.requireAdminOrDeliveryPartner(deliveryPartner);
 
         validateOrderCanReceivePartner(order);
         validatePartnerAvailable(deliveryPartner);
@@ -275,6 +276,7 @@ public class OrderServiceImpl implements OrderService {
         if (order.getDeliveryPartner() == null) {
             throw new IllegalArgumentException("Cannot mark order out for delivery without assigned delivery partner");
         }
+        currentUserService.requireAdminOrDeliveryPartner(order.getDeliveryPartner());
 
         order.setOrderStatus(OrderStatus.OUT_FOR_DELIVERY);
         order.setOutForDeliveryAt(LocalDateTime.now());
@@ -295,13 +297,17 @@ public class OrderServiceImpl implements OrderService {
 
         validateCurrentStatus(order, OrderStatus.OUT_FOR_DELIVERY, "Only OUT_FOR_DELIVERY orders can be delivered");
 
+        if (order.getDeliveryPartner() == null) {
+            throw new IllegalArgumentException("Cannot deliver order without assigned delivery partner");
+        }
+
+        currentUserService.requireAdminOrDeliveryPartner(order.getDeliveryPartner());
+
         order.setOrderStatus(OrderStatus.DELIVERED);
         order.setDeliveredAt(LocalDateTime.now());
 
-        if (order.getDeliveryPartner() != null) {
-            order.getDeliveryPartner().setStatus(DeliveryPartnerStatus.AVAILABLE);
-            deliveryPartnerRepository.save(order.getDeliveryPartner());
-        }
+        order.getDeliveryPartner().setStatus(DeliveryPartnerStatus.AVAILABLE);
+        deliveryPartnerRepository.save(order.getDeliveryPartner());
 
         Order savedOrder = orderRepository.save(order);
 
@@ -309,6 +315,7 @@ public class OrderServiceImpl implements OrderService {
 
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
     }
+
 
     @Override
     public void delete(Long id) {

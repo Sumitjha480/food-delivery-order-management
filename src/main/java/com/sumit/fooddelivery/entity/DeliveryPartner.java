@@ -12,6 +12,10 @@ import lombok.Setter;
 @Table(name = "delivery_partners")
 public class DeliveryPartner extends BaseEntity {
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", unique = true)
+    private User user;
+
     @NotBlank
     @Column(nullable = false)
     private String name;

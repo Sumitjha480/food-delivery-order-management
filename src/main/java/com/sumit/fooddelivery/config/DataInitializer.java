@@ -33,10 +33,17 @@ public class DataInitializer implements CommandLineRunner {
         createUserIfNotExists("owner2", "owner2123", UserRole.RESTAURANT_OWNER);
         createUserIfNotExists("customer", "customer123", UserRole.CUSTOMER);
         createUserIfNotExists("partner", "partner123", UserRole.DELIVERY_PARTNER);
+        createUserIfNotExists("partner2", "partner2123", UserRole.DELIVERY_PARTNER);
         User owner = userRepository.findByUsername("owner")
                 .orElseThrow(() -> new IllegalStateException("Demo owner user not found"));
         User customerUser = userRepository.findByUsername("customer")
                 .orElseThrow(() -> new IllegalStateException("Demo customer user not found"));
+        User partnerUser = userRepository.findByUsername("partner")
+                .orElseThrow(() -> new IllegalStateException("Demo partner user not found"));
+
+        User partner2User = userRepository.findByUsername("partner2")
+                .orElseThrow(() -> new IllegalStateException("Demo partner2 user not found"));
+
 
         City city = createCityIfNotExists("Delhi");
 
@@ -46,7 +53,8 @@ public class DataInitializer implements CommandLineRunner {
 
         createMenuItemIfNotExists(restaurant);
 
-        createDeliveryPartnerIfNotExists(city);
+        createDeliveryPartnerIfNotExists(city, partnerUser);
+        createSecondDeliveryPartnerIfNotExists(city, partner2User);
     }
 
     private void createUserIfNotExists(String username, String rawPassword, UserRole role) {
@@ -153,18 +161,53 @@ public class DataInitializer implements CommandLineRunner {
         menuItemRepository.save(menuItem);
     }
 
-    private void createDeliveryPartnerIfNotExists(City city) {
+    private void createDeliveryPartnerIfNotExists(City city, User partnerUser) {
+
+        deliveryPartnerRepository.findAll()
+                .stream()
+                .filter(partner -> "Ravi Partner".equals(partner.getName()))
+                .findFirst()
+                .ifPresentOrElse(existing -> {
+                    boolean changed = false;
+
+                    if (existing.getCity() == null) {
+                        existing.setCity(city);
+                        changed = true;
+                    }
+
+                    if (existing.getUser() == null) {
+                        existing.setUser(partnerUser);
+                        changed = true;
+                    }
+
+                    if (changed) {
+                        deliveryPartnerRepository.save(existing);
+                    }
+                }, () -> {
+                    DeliveryPartner partner = new DeliveryPartner();
+                    partner.setUser(partnerUser);
+                    partner.setName("Ravi Partner");
+                    partner.setPhone("9999990000");
+                    partner.setCity(city);
+                    partner.setStatus(DeliveryPartnerStatus.AVAILABLE);
+
+                    deliveryPartnerRepository.save(partner);
+                });
+    }
+
+    private void createSecondDeliveryPartnerIfNotExists(City city, User partner2User) {
 
         boolean alreadyExists = deliveryPartnerRepository.findAll()
                 .stream()
-                .anyMatch(partner -> "Ravi Partner".equals(partner.getName()));
+                .anyMatch(partner -> "Second Partner".equals(partner.getName()));
 
         if (alreadyExists) {
             deliveryPartnerRepository.findAll()
                     .stream()
-                    .filter(partner -> "Ravi Partner".equals(partner.getName()))
-                    .filter(partner -> partner.getCity() == null)
+                    .filter(partner -> "Second Partner".equals(partner.getName()))
+                    .filter(partner -> partner.getUser() == null)
                     .forEach(partner -> {
+                        partner.setUser(partner2User);
                         partner.setCity(city);
                         deliveryPartnerRepository.save(partner);
                     });
@@ -172,8 +215,9 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         DeliveryPartner partner = new DeliveryPartner();
-        partner.setName("Ravi Partner");
-        partner.setPhone("9999990000");
+        partner.setUser(partner2User);
+        partner.setName("Second Partner");
+        partner.setPhone("9999991111");
         partner.setCity(city);
         partner.setStatus(DeliveryPartnerStatus.AVAILABLE);
 

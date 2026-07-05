@@ -17,4 +17,8 @@ public interface DeliveryPartnerRepository extends JpaRepository<DeliveryPartner
     Optional<DeliveryPartner> findByIdForUpdate(@Param("id") Long id);
 
     List<DeliveryPartner> findByCity_Id(Long cityId);
+
+    Optional<DeliveryPartner> findByUser_Username(String username);
+
+    boolean existsByUser_Id(Long userId);
 }

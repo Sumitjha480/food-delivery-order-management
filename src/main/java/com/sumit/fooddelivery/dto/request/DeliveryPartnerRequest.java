@@ -9,6 +9,9 @@ import lombok.Data;
 @Data
 public class DeliveryPartnerRequest {
 
+    @NotBlank(message = "Username is required")
+    private String username;
+
     @NotBlank(message = "Delivery partner name is required")
     private String name;
 
