@@ -32,12 +32,15 @@ public class DataInitializer implements CommandLineRunner {
         createUserIfNotExists("owner", "owner123", UserRole.RESTAURANT_OWNER);
         createUserIfNotExists("owner2", "owner2123", UserRole.RESTAURANT_OWNER);
         createUserIfNotExists("customer", "customer123", UserRole.CUSTOMER);
+        createUserIfNotExists("customer2", "customer2123", UserRole.CUSTOMER);
         createUserIfNotExists("partner", "partner123", UserRole.DELIVERY_PARTNER);
         createUserIfNotExists("partner2", "partner2123", UserRole.DELIVERY_PARTNER);
         User owner = userRepository.findByUsername("owner")
                 .orElseThrow(() -> new IllegalStateException("Demo owner user not found"));
         User customerUser = userRepository.findByUsername("customer")
                 .orElseThrow(() -> new IllegalStateException("Demo customer user not found"));
+        User customer2User = userRepository.findByUsername("customer2")
+                .orElseThrow(() -> new IllegalStateException("Demo customer2 user not found"));
         User partnerUser = userRepository.findByUsername("partner")
                 .orElseThrow(() -> new IllegalStateException("Demo partner user not found"));
 
@@ -48,6 +51,7 @@ public class DataInitializer implements CommandLineRunner {
         City city = createCityIfNotExists("Delhi");
 
         createCustomerIfNotExists(customerUser);
+        createSecondCustomerIfNotExists(customer2User);
 
         Restaurant restaurant = createRestaurantIfNotExists(city, owner);
 
@@ -222,5 +226,29 @@ public class DataInitializer implements CommandLineRunner {
         partner.setStatus(DeliveryPartnerStatus.AVAILABLE);
 
         deliveryPartnerRepository.save(partner);
+    }
+
+    private Customer createSecondCustomerIfNotExists(User customer2User) {
+
+        return customerRepository.findAll()
+                .stream()
+                .filter(customer -> "customer2@test.com".equals(customer.getEmail()))
+                .findFirst()
+                .map(existing -> {
+                    if (existing.getUser() == null) {
+                        existing.setUser(customer2User);
+                        return customerRepository.save(existing);
+                    }
+                    return existing;
+                })
+                .orElseGet(() -> {
+                    Customer customer = new Customer();
+                    customer.setUser(customer2User);
+                    customer.setName("Second Test Customer");
+                    customer.setEmail("customer2@test.com");
+                    customer.setPhone("9999999998");
+                    customer.setAddress("Delhi");
+                    return customerRepository.save(customer);
+                });
     }
 }
