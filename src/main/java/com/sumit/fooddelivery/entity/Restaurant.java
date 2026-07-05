@@ -16,18 +16,21 @@ public class Restaurant extends BaseEntity {
     @Column(nullable = false)
     private String name;
 
-    @NotBlank
+    // Legacy/denormalized city name kept to avoid old DB column issues.
     @Column(nullable = false)
     private String city;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "city_id")
+    private City cityEntity;
 
     @Column(nullable = false)
     private String address;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private RestaurantStatus status;
 
     @Column(nullable = false)
     private Integer estimatedDeliveryTime;
-
 }

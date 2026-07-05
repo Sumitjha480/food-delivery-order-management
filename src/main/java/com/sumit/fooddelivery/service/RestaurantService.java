@@ -11,11 +11,11 @@ public interface RestaurantService {
 
     List<RestaurantResponse> getAllRestaurants();
 
+    List<RestaurantResponse> getRestaurantsByCity(Long cityId);
+
     RestaurantResponse getRestaurant(Long id);
 
-    RestaurantResponse updateRestaurant(Long id,
-                                        RestaurantRequest request);
+    RestaurantResponse updateRestaurant(Long id, RestaurantRequest request);
 
     void deleteRestaurant(Long id);
-
 }

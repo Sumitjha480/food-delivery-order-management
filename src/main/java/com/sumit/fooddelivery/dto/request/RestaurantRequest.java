@@ -10,17 +10,16 @@ import lombok.Setter;
 @Setter
 public class RestaurantRequest {
 
-    @NotBlank
+    @NotBlank(message = "Restaurant name is required")
     private String name;
 
-    @NotBlank
+    @NotBlank(message = "Restaurant address is required")
     private String address;
 
-    @NotBlank
-    private String city;
+    @NotNull(message = "City id is required")
+    private Long cityId;
 
-    @NotNull
-    @Positive
+    @NotNull(message = "Estimated delivery time is required")
+    @Positive(message = "Estimated delivery time must be positive")
     private Integer estimatedDeliveryTime;
-
 }

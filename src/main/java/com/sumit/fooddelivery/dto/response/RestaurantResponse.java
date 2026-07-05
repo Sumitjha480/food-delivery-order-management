@@ -16,10 +16,11 @@ public class RestaurantResponse {
 
     private String address;
 
-    private String city;
+    private Long cityId;
+
+    private String cityName;
 
     private Integer estimatedDeliveryTime;
 
     private RestaurantStatus status;
-
 }

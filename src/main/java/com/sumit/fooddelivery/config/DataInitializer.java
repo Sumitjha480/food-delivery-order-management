@@ -1,18 +1,11 @@
 package com.sumit.fooddelivery.config;
 
-import com.sumit.fooddelivery.entity.Customer;
-import com.sumit.fooddelivery.entity.DeliveryPartner;
-import com.sumit.fooddelivery.entity.MenuItem;
-import com.sumit.fooddelivery.entity.Restaurant;
-import com.sumit.fooddelivery.entity.User;
+import com.sumit.fooddelivery.entity.*;
+import com.sumit.fooddelivery.enums.CityStatus;
 import com.sumit.fooddelivery.enums.DeliveryPartnerStatus;
 import com.sumit.fooddelivery.enums.RestaurantStatus;
 import com.sumit.fooddelivery.enums.UserRole;
-import com.sumit.fooddelivery.repository.CustomerRepository;
-import com.sumit.fooddelivery.repository.DeliveryPartnerRepository;
-import com.sumit.fooddelivery.repository.MenuItemRepository;
-import com.sumit.fooddelivery.repository.RestaurantRepository;
-import com.sumit.fooddelivery.repository.UserRepository;
+import com.sumit.fooddelivery.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,6 +22,7 @@ public class DataInitializer implements CommandLineRunner {
     private final RestaurantRepository restaurantRepository;
     private final MenuItemRepository menuItemRepository;
     private final DeliveryPartnerRepository deliveryPartnerRepository;
+    private final CityRepository cityRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -39,13 +33,15 @@ public class DataInitializer implements CommandLineRunner {
         createUserIfNotExists("customer", "customer123", UserRole.CUSTOMER);
         createUserIfNotExists("partner", "partner123", UserRole.DELIVERY_PARTNER);
 
-        Customer customer = createCustomerIfNotExists();
+        City city = createCityIfNotExists("Delhi");
 
-        Restaurant restaurant = createRestaurantIfNotExists();
+        createCustomerIfNotExists();
+
+        Restaurant restaurant = createRestaurantIfNotExists(city);
 
         createMenuItemIfNotExists(restaurant);
 
-        createDeliveryPartnerIfNotExists();
+        createDeliveryPartnerIfNotExists(city);
     }
 
     private void createUserIfNotExists(String username, String rawPassword, UserRole role) {
@@ -60,6 +56,17 @@ public class DataInitializer implements CommandLineRunner {
         user.setRole(role);
 
         userRepository.save(user);
+    }
+
+    private City createCityIfNotExists(String cityName) {
+
+        return cityRepository.findByNameIgnoreCase(cityName)
+                .orElseGet(() -> {
+                    City city = new City();
+                    city.setName(cityName);
+                    city.setStatus(CityStatus.ACTIVE);
+                    return cityRepository.save(city);
+                });
     }
 
     private Customer createCustomerIfNotExists() {
@@ -78,17 +85,26 @@ public class DataInitializer implements CommandLineRunner {
                 });
     }
 
-    private Restaurant createRestaurantIfNotExists() {
+    private Restaurant createRestaurantIfNotExists(City city) {
 
         return restaurantRepository.findAll()
                 .stream()
                 .filter(restaurant -> "Pizza Palace".equals(restaurant.getName()))
                 .findFirst()
+                .map(existing -> {
+                    if (existing.getCityEntity() == null) {
+                        existing.setCityEntity(city);
+                        existing.setCity(city.getName());
+                        return restaurantRepository.save(existing);
+                    }
+                    return existing;
+                })
                 .orElseGet(() -> {
                     Restaurant restaurant = new Restaurant();
                     restaurant.setName("Pizza Palace");
                     restaurant.setAddress("Connaught Place");
-                    restaurant.setCity("Delhi");
+                    restaurant.setCity(city.getName());
+                    restaurant.setCityEntity(city);
                     restaurant.setStatus(RestaurantStatus.ACTIVE);
                     restaurant.setEstimatedDeliveryTime(30);
                     return restaurantRepository.save(restaurant);
@@ -114,18 +130,28 @@ public class DataInitializer implements CommandLineRunner {
         menuItemRepository.save(menuItem);
     }
 
-    private void createDeliveryPartnerIfNotExists() {
+    private void createDeliveryPartnerIfNotExists(City city) {
 
         boolean alreadyExists = deliveryPartnerRepository.findAll()
                 .stream()
                 .anyMatch(partner -> "Ravi Partner".equals(partner.getName()));
 
         if (alreadyExists) {
+            deliveryPartnerRepository.findAll()
+                    .stream()
+                    .filter(partner -> "Ravi Partner".equals(partner.getName()))
+                    .filter(partner -> partner.getCity() == null)
+                    .forEach(partner -> {
+                        partner.setCity(city);
+                        deliveryPartnerRepository.save(partner);
+                    });
             return;
         }
 
         DeliveryPartner partner = new DeliveryPartner();
         partner.setName("Ravi Partner");
+        partner.setPhone("9999990000");
+        partner.setCity(city);
         partner.setStatus(DeliveryPartnerStatus.AVAILABLE);
 
         deliveryPartnerRepository.save(partner);

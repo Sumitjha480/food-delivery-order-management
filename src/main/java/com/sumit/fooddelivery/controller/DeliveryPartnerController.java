@@ -1,6 +1,7 @@
 package com.sumit.fooddelivery.controller;
 
-import com.sumit.fooddelivery.entity.DeliveryPartner;
+import com.sumit.fooddelivery.dto.request.DeliveryPartnerRequest;
+import com.sumit.fooddelivery.dto.response.DeliveryPartnerResponse;
 import com.sumit.fooddelivery.service.DeliveryPartnerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,24 +17,28 @@ public class DeliveryPartnerController {
     private final DeliveryPartnerService deliveryPartnerService;
 
     @PostMapping
-    public DeliveryPartner create(@Valid @RequestBody DeliveryPartner partner) {
-        return deliveryPartnerService.create(partner);
+    public DeliveryPartnerResponse create(@Valid @RequestBody DeliveryPartnerRequest request) {
+        return deliveryPartnerService.create(request);
     }
 
     @GetMapping
-    public List<DeliveryPartner> getAll() {
-        return deliveryPartnerService.getAll();
+    public List<DeliveryPartnerResponse> getAll(
+            @RequestParam(required = false) Long cityId
+    ) {
+        return deliveryPartnerService.getAll(cityId);
     }
 
     @GetMapping("/{id}")
-    public DeliveryPartner get(@PathVariable Long id) {
+    public DeliveryPartnerResponse get(@PathVariable Long id) {
         return deliveryPartnerService.get(id);
     }
 
     @PutMapping("/{id}")
-    public DeliveryPartner update(@PathVariable Long id,
-                                  @Valid @RequestBody DeliveryPartner partner) {
-        return deliveryPartnerService.update(id, partner);
+    public DeliveryPartnerResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody DeliveryPartnerRequest request
+    ) {
+        return deliveryPartnerService.update(id, request);
     }
 
     @DeleteMapping("/{id}")

@@ -20,46 +20,39 @@ public class RestaurantController {
 
     @PostMapping
     public ResponseEntity<RestaurantResponse> createRestaurant(
-            @Valid @RequestBody RestaurantRequest request) {
-
+            @Valid @RequestBody RestaurantRequest request
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(restaurantService.createRestaurant(request));
     }
 
     @GetMapping
-    public ResponseEntity<List<RestaurantResponse>> getAllRestaurants() {
+    public ResponseEntity<List<RestaurantResponse>> getAllRestaurants(
+            @RequestParam(required = false) Long cityId
+    ) {
+        if (cityId != null) {
+            return ResponseEntity.ok(restaurantService.getRestaurantsByCity(cityId));
+        }
 
-        return ResponseEntity.ok(
-                restaurantService.getAllRestaurants()
-        );
+        return ResponseEntity.ok(restaurantService.getAllRestaurants());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<RestaurantResponse> getRestaurant(
-            @PathVariable Long id) {
-
-        return ResponseEntity.ok(
-                restaurantService.getRestaurant(id)
-        );
+    public ResponseEntity<RestaurantResponse> getRestaurant(@PathVariable Long id) {
+        return ResponseEntity.ok(restaurantService.getRestaurant(id));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<RestaurantResponse> updateRestaurant(
             @PathVariable Long id,
-            @Valid @RequestBody RestaurantRequest request) {
-
-        return ResponseEntity.ok(
-                restaurantService.updateRestaurant(id, request)
-        );
+            @Valid @RequestBody RestaurantRequest request
+    ) {
+        return ResponseEntity.ok(restaurantService.updateRestaurant(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteRestaurant(
-            @PathVariable Long id) {
-
+    public ResponseEntity<Void> deleteRestaurant(@PathVariable Long id) {
         restaurantService.deleteRestaurant(id);
-
         return ResponseEntity.noContent().build();
     }
-
 }

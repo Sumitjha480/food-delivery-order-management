@@ -16,8 +16,14 @@ public class DeliveryPartner extends BaseEntity {
     @Column(nullable = false)
     private String name;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private DeliveryPartnerStatus status;
+    @Column(length = 20)
+    private String phone;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "city_id")
+    private City city;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private DeliveryPartnerStatus status;
 }

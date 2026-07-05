@@ -132,6 +132,22 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/notifications/*/read")
                         .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
 
+// Cities
+                                .requestMatchers(HttpMethod.GET, "/cities/**")
+                                .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
+
+                                .requestMatchers(HttpMethod.POST, "/cities/**")
+                                .hasRole("ADMIN")
+
+                                .requestMatchers(HttpMethod.PUT, "/cities/**")
+                                .hasRole("ADMIN")
+
+                                .requestMatchers(HttpMethod.PATCH, "/cities/**")
+                                .hasRole("ADMIN")
+
+                                .requestMatchers(HttpMethod.DELETE, "/cities/**")
+                                .hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults())

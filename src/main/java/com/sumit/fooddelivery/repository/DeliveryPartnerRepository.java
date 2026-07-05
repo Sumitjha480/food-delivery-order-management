@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface DeliveryPartnerRepository extends JpaRepository<DeliveryPartner, Long> {
@@ -14,4 +15,6 @@ public interface DeliveryPartnerRepository extends JpaRepository<DeliveryPartner
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select d from DeliveryPartner d where d.id = :id")
     Optional<DeliveryPartner> findByIdForUpdate(@Param("id") Long id);
+
+    List<DeliveryPartner> findByCity_Id(Long cityId);
 }

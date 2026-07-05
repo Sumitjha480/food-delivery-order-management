@@ -203,6 +203,7 @@ public class OrderServiceImpl implements OrderService {
 
         validateOrderCanReceivePartner(order);
         validatePartnerAvailable(deliveryPartner);
+        validatePartnerServicesRestaurantCity(order, deliveryPartner);
 
         order.setDeliveryPartner(deliveryPartner);
         deliveryPartner.setStatus(DeliveryPartnerStatus.BUSY);
@@ -223,6 +224,7 @@ public class OrderServiceImpl implements OrderService {
 
         validateOrderCanReceivePartner(order);
         validatePartnerAvailable(deliveryPartner);
+        validatePartnerServicesRestaurantCity(order, deliveryPartner);
 
         order.setDeliveryPartner(deliveryPartner);
         deliveryPartner.setStatus(DeliveryPartnerStatus.BUSY);
@@ -444,6 +446,29 @@ public class OrderServiceImpl implements OrderService {
                         deliveryPartner.getId()
                 )
         );
+    }
+
+    private void validatePartnerServicesRestaurantCity(Order order, DeliveryPartner deliveryPartner) {
+
+        City restaurantCity = order.getRestaurant().getCityEntity();
+        City partnerCity = deliveryPartner.getCity();
+
+        if (restaurantCity == null) {
+            throw new IllegalArgumentException("Restaurant city is not configured");
+        }
+
+        if (partnerCity == null) {
+            throw new IllegalArgumentException("Delivery partner city is not configured");
+        }
+
+        if (!restaurantCity.getId().equals(partnerCity.getId())) {
+            throw new IllegalArgumentException(
+                    "Delivery partner city does not match restaurant city. Restaurant city: "
+                            + restaurantCity.getName()
+                            + ", partner city: "
+                            + partnerCity.getName()
+            );
+        }
     }
 
 }
