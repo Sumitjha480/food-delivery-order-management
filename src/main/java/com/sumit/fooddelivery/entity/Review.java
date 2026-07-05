@@ -7,12 +7,15 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@Table(name = "reviews")
 public class Review extends BaseEntity {
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "restaurant_id", nullable = false)
     private Restaurant restaurant;
 
     private Integer rating;
