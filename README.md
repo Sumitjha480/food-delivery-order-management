@@ -6,6 +6,11 @@ This project models a multi-restaurant food delivery platform where customers ca
 
 ---
 
+## Demo
+https://www.loom.com/share/f44c39e70cb142c28620a021411854ff
+
+---
+
 ## Table of Contents
 
 1. [Features](#features)
