@@ -1,6 +1,8 @@
 package com.sumit.fooddelivery.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -18,6 +20,8 @@ public class Review extends BaseEntity {
     @JoinColumn(name = "restaurant_id", nullable = false)
     private Restaurant restaurant;
 
+    @Min(1)
+    @Max(5)
     private Integer rating;
 
     private String comment;

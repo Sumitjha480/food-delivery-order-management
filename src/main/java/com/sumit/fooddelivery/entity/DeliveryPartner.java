@@ -1,8 +1,8 @@
 package com.sumit.fooddelivery.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import com.sumit.fooddelivery.enums.DeliveryPartnerStatus;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,9 +12,12 @@ import lombok.Setter;
 @Table(name = "delivery_partners")
 public class DeliveryPartner extends BaseEntity {
 
+    @NotBlank
     @Column(nullable = false)
     private String name;
 
-    private boolean available;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private DeliveryPartnerStatus status;
 
 }

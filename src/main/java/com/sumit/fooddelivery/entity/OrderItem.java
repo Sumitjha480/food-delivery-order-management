@@ -1,6 +1,7 @@
 package com.sumit.fooddelivery.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,5 +23,6 @@ public class OrderItem extends BaseEntity {
 
     private Integer quantity;
 
+    @NotNull
     private BigDecimal price;
 }
