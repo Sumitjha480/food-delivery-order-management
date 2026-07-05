@@ -26,28 +26,17 @@ public class SecurityConfig {
                 .userDetailsService(customUserDetailsService)
                 .authorizeHttpRequests(auth -> auth
 
-                        // public health endpoints
+                        // Public endpoints
                         .requestMatchers(HttpMethod.GET, "/", "/health").permitAll()
-
-                        // restaurant browsing is allowed to all authenticated roles
-                        .requestMatchers(HttpMethod.GET, "/restaurants/**")
-                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
-
-                        // admin manages restaurants
-                        .requestMatchers(HttpMethod.POST, "/restaurants/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/restaurants/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/restaurants/**").hasRole("ADMIN")
-
-                        // menu browsing is allowed to all authenticated roles
-                        .requestMatchers(HttpMethod.GET, "/menu-items/**")
-                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
 
                         .requestMatchers(HttpMethod.GET, "/restaurants/*/menu-items")
                         .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
 
-                        // menu management by admin or restaurant owner
                         .requestMatchers(HttpMethod.POST, "/restaurants/*/menu-items")
                         .hasAnyRole("ADMIN", "RESTAURANT_OWNER")
+
+                        .requestMatchers(HttpMethod.GET, "/menu-items/**")
+                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
 
                         .requestMatchers(HttpMethod.PUT, "/menu-items/**")
                         .hasAnyRole("ADMIN", "RESTAURANT_OWNER")
@@ -55,27 +44,35 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/menu-items/**")
                         .hasAnyRole("ADMIN", "RESTAURANT_OWNER")
 
-                        // customers place orders
+                        // Restaurant browsing
+                        .requestMatchers(HttpMethod.GET, "/restaurants/**")
+                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
+
+                        // Admin manages restaurants
+                        .requestMatchers(HttpMethod.POST, "/restaurants/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/restaurants/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/restaurants/**").hasRole("ADMIN")
+
+                        // Customers place orders
                         .requestMatchers(HttpMethod.POST, "/orders")
                         .hasRole("CUSTOMER")
 
-                        // order viewing for now; ownership filtering comes in later section
+                        // Order viewing
                         .requestMatchers(HttpMethod.GET, "/orders/**")
                         .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
 
-                        // deleting orders should not be open to customers
                         .requestMatchers(HttpMethod.DELETE, "/orders/**")
                         .hasRole("ADMIN")
 
-                        // admin manages customer records for now
+                        // Admin manages customers
                         .requestMatchers("/customers/**")
                         .hasRole("ADMIN")
 
-                        // admin manages delivery partners
+                        // Admin manages delivery partners
                         .requestMatchers("/delivery-partners/**")
                         .hasRole("ADMIN")
 
-                        // customers create/update reviews, all authenticated users can read reviews
+                        // Reviews
                         .requestMatchers(HttpMethod.GET, "/reviews/**")
                         .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
 
@@ -88,7 +85,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/reviews/**")
                         .hasAnyRole("CUSTOMER", "ADMIN")
 
-                        // everything else requires authentication
                         .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults())
