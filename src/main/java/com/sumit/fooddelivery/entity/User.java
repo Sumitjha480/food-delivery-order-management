@@ -11,13 +11,13 @@ import lombok.Setter;
 @Table(name = "users")
 public class User extends BaseEntity {
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 100)
     private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String password;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private UserRole role;
 }
