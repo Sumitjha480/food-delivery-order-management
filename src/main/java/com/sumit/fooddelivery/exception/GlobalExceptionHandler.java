@@ -37,7 +37,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
-        return buildResponse(HttpStatus.CONFLICT, "Duplicate or invalid data");
+
+        String rootCause = ex.getMostSpecificCause() != null
+                ? ex.getMostSpecificCause().getMessage()
+                : ex.getMessage();
+
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                "Database constraint violation: " + rootCause
+        );
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)

@@ -19,4 +19,8 @@ public class OrderRequest {
     @NotEmpty(message = "Order must contain at least one item")
     @Valid
     private List<OrderItemRequest> items;
+
+    @NotNull(message = "Payment details are required")
+    @Valid
+    private PaymentRequest payment;
 }

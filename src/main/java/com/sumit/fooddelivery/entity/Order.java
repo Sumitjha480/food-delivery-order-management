@@ -1,6 +1,7 @@
 package com.sumit.fooddelivery.entity;
 
 import com.sumit.fooddelivery.enums.OrderStatus;
+import com.sumit.fooddelivery.enums.PaymentMethod;
 import com.sumit.fooddelivery.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -30,12 +31,24 @@ public class Order extends BaseEntity {
     private DeliveryPartner deliveryPartner;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private OrderStatus orderStatus;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private PaymentStatus paymentStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 50)
+    private PaymentMethod paymentMethod;
+
+    private String paymentReference;
+
+    private String paymentFailureReason;
+
+    private LocalDateTime paidAt;
+
+    private LocalDateTime refundedAt;
 
     @Column(nullable = false)
     private BigDecimal totalAmount;

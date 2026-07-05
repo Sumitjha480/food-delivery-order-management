@@ -8,8 +8,10 @@ import com.sumit.fooddelivery.entity.*;
 import com.sumit.fooddelivery.enums.DeliveryPartnerStatus;
 import com.sumit.fooddelivery.enums.OrderStatus;
 import com.sumit.fooddelivery.enums.PaymentStatus;
+import com.sumit.fooddelivery.payment.PaymentResult;
 import com.sumit.fooddelivery.repository.*;
 import com.sumit.fooddelivery.service.OrderService;
+import com.sumit.fooddelivery.service.PaymentService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,7 @@ public class OrderServiceImpl implements OrderService {
     private final DeliveryPartnerRepository deliveryPartnerRepository;
     private final MenuItemRepository menuItemRepository;
     private final OrderItemRepository orderItemRepository;
+    private final PaymentService paymentService;
 
     @Override
     public OrderResponse create(OrderRequest request) {
@@ -49,6 +52,7 @@ public class OrderServiceImpl implements OrderService {
         order.setDeliveryPartner(null);
         order.setOrderStatus(OrderStatus.PLACED);
         order.setPaymentStatus(PaymentStatus.PENDING);
+        order.setPaymentMethod(request.getPayment().getMethod());
 
         List<OrderItemRequest> mergedItems = mergeDuplicateMenuItems(request.getItems());
 
@@ -91,6 +95,21 @@ public class OrderServiceImpl implements OrderService {
 
         order.setTotalAmount(total);
 
+        PaymentResult paymentResult = paymentService.charge(total, request.getPayment());
+
+        if (!paymentResult.isSuccess()) {
+            order.setPaymentStatus(PaymentStatus.FAILED);
+            order.setPaymentFailureReason(paymentResult.getFailureReason());
+
+            throw new IllegalArgumentException(
+                    "Payment failed: " + paymentResult.getFailureReason()
+            );
+        }
+
+        order.setPaymentStatus(PaymentStatus.SUCCESS);
+        order.setPaymentReference(paymentResult.getReference());
+        order.setPaidAt(LocalDateTime.now());
+
         Order savedOrder = orderRepository.save(order);
         orderItemRepository.saveAll(orderItems);
 
@@ -122,6 +141,10 @@ public class OrderServiceImpl implements OrderService {
 
         validateCurrentStatus(order, OrderStatus.PLACED, "Only PLACED orders can be accepted");
 
+        if (order.getPaymentStatus() != PaymentStatus.SUCCESS) {
+            throw new IllegalArgumentException("Only successfully paid orders can be accepted");
+        }
+
         order.setOrderStatus(OrderStatus.ACCEPTED);
         order.setAcceptedAt(LocalDateTime.now());
 
@@ -140,11 +163,18 @@ public class OrderServiceImpl implements OrderService {
         restoreStock(order);
 
         order.setOrderStatus(OrderStatus.REJECTED);
-        order.setPaymentStatus(PaymentStatus.FAILED);
         order.setRejectedAt(LocalDateTime.now());
         order.setRejectionReason(reason != null && !reason.isBlank()
                 ? reason
                 : "Rejected by restaurant");
+
+        if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
+            order.setPaymentStatus(PaymentStatus.REFUNDED);
+            order.setRefundedAt(LocalDateTime.now());
+        } else {
+            order.setPaymentStatus(PaymentStatus.FAILED);
+            order.setPaymentFailureReason("Order rejected before successful payment");
+        }
 
         Order savedOrder = orderRepository.save(order);
 
@@ -229,7 +259,6 @@ public class OrderServiceImpl implements OrderService {
         validateCurrentStatus(order, OrderStatus.OUT_FOR_DELIVERY, "Only OUT_FOR_DELIVERY orders can be delivered");
 
         order.setOrderStatus(OrderStatus.DELIVERED);
-        order.setPaymentStatus(PaymentStatus.SUCCESS);
         order.setDeliveredAt(LocalDateTime.now());
 
         if (order.getDeliveryPartner() != null) {
@@ -309,37 +338,6 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private OrderResponse mapToResponse(Order order, List<OrderItem> items) {
-
-        List<OrderItemResponse> itemResponses = items.stream()
-                .map(i -> OrderItemResponse.builder()
-                        .menuItemId(i.getMenuItem().getId())
-                        .menuItemName(i.getMenuItem().getName())
-                        .quantity(i.getQuantity())
-                        .price(i.getPrice())
-                        .build())
-                .toList();
-
-        return OrderResponse.builder()
-                .id(order.getId())
-                .customerName(order.getCustomer().getName())
-                .restaurantName(order.getRestaurant().getName())
-                .deliveryPartnerName(order.getDeliveryPartner() != null
-                        ? order.getDeliveryPartner().getName()
-                        : null)
-                .totalAmount(order.getTotalAmount())
-                .orderStatus(order.getOrderStatus())
-                .paymentStatus(order.getPaymentStatus())
-                .acceptedAt(order.getAcceptedAt())
-                .preparingAt(order.getPreparingAt())
-                .outForDeliveryAt(order.getOutForDeliveryAt())
-                .deliveredAt(order.getDeliveredAt())
-                .rejectedAt(order.getRejectedAt())
-                .rejectionReason(order.getRejectionReason())
-                .items(itemResponses)
-                .build();
-    }
-
     private List<OrderItemRequest> mergeDuplicateMenuItems(List<OrderItemRequest> items) {
 
         Map<Long, Integer> quantityByMenuItemId = new LinkedHashMap<>();
@@ -363,4 +361,39 @@ public class OrderServiceImpl implements OrderService {
                 .toList();
     }
 
+    private OrderResponse mapToResponse(Order order, List<OrderItem> items) {
+
+        List<OrderItemResponse> itemResponses = items.stream()
+                .map(i -> OrderItemResponse.builder()
+                        .menuItemId(i.getMenuItem().getId())
+                        .menuItemName(i.getMenuItem().getName())
+                        .quantity(i.getQuantity())
+                        .price(i.getPrice())
+                        .build())
+                .toList();
+
+        return OrderResponse.builder()
+                .id(order.getId())
+                .customerName(order.getCustomer().getName())
+                .restaurantName(order.getRestaurant().getName())
+                .deliveryPartnerName(order.getDeliveryPartner() != null
+                        ? order.getDeliveryPartner().getName()
+                        : null)
+                .totalAmount(order.getTotalAmount())
+                .orderStatus(order.getOrderStatus())
+                .paymentStatus(order.getPaymentStatus())
+                .paymentMethod(order.getPaymentMethod())
+                .paymentReference(order.getPaymentReference())
+                .paymentFailureReason(order.getPaymentFailureReason())
+                .paidAt(order.getPaidAt())
+                .refundedAt(order.getRefundedAt())
+                .acceptedAt(order.getAcceptedAt())
+                .preparingAt(order.getPreparingAt())
+                .outForDeliveryAt(order.getOutForDeliveryAt())
+                .deliveredAt(order.getDeliveredAt())
+                .rejectedAt(order.getRejectedAt())
+                .rejectionReason(order.getRejectionReason())
+                .items(itemResponses)
+                .build();
+    }
 }
