@@ -1,5 +1,6 @@
 package com.sumit.fooddelivery.controller;
 
+import com.sumit.fooddelivery.dto.request.AssignDeliveryPartnerRequest;
 import com.sumit.fooddelivery.dto.request.OrderRequest;
 import com.sumit.fooddelivery.dto.request.RejectOrderRequest;
 import com.sumit.fooddelivery.dto.response.OrderResponse;
@@ -44,6 +45,22 @@ public class OrderController {
     ) {
         String reason = request != null ? request.getReason() : null;
         return orderService.reject(id, reason);
+    }
+
+    @PatchMapping("/{id}/assign-partner")
+    public OrderResponse assignDeliveryPartner(
+            @PathVariable Long id,
+            @Valid @RequestBody AssignDeliveryPartnerRequest request
+    ) {
+        return orderService.assignDeliveryPartner(id, request.getDeliveryPartnerId());
+    }
+
+    @PatchMapping("/{id}/claim")
+    public OrderResponse claimDeliveryPartner(
+            @PathVariable Long id,
+            @Valid @RequestBody AssignDeliveryPartnerRequest request
+    ) {
+        return orderService.claimDeliveryPartner(id, request.getDeliveryPartnerId());
     }
 
     @PatchMapping("/{id}/preparing")

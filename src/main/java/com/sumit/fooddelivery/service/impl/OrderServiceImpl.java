@@ -41,17 +41,10 @@ public class OrderServiceImpl implements OrderService {
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new EntityNotFoundException("Restaurant not found"));
 
-        DeliveryPartner deliveryPartner = null;
-
-        if (request.getDeliveryPartnerId() != null) {
-            deliveryPartner = deliveryPartnerRepository.findById(request.getDeliveryPartnerId())
-                    .orElseThrow(() -> new EntityNotFoundException("Delivery partner not found"));
-        }
-
         Order order = new Order();
         order.setCustomer(customer);
         order.setRestaurant(restaurant);
-        order.setDeliveryPartner(deliveryPartner);
+        order.setDeliveryPartner(null);
         order.setOrderStatus(OrderStatus.PLACED);
         order.setPaymentStatus(PaymentStatus.PENDING);
 
@@ -151,6 +144,42 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public OrderResponse assignDeliveryPartner(Long orderId, Long deliveryPartnerId) {
+
+        Order order = getOrderForUpdateOrThrow(orderId);
+        DeliveryPartner deliveryPartner = getDeliveryPartnerForUpdateOrThrow(deliveryPartnerId);
+
+        validateOrderCanReceivePartner(order);
+        validatePartnerAvailable(deliveryPartner);
+
+        order.setDeliveryPartner(deliveryPartner);
+        deliveryPartner.setStatus(DeliveryPartnerStatus.BUSY);
+
+        deliveryPartnerRepository.save(deliveryPartner);
+        Order savedOrder = orderRepository.save(order);
+
+        return mapToResponse(savedOrder, savedOrder.getOrderItems());
+    }
+
+    @Override
+    public OrderResponse claimDeliveryPartner(Long orderId, Long deliveryPartnerId) {
+
+        Order order = getOrderForUpdateOrThrow(orderId);
+        DeliveryPartner deliveryPartner = getDeliveryPartnerForUpdateOrThrow(deliveryPartnerId);
+
+        validateOrderCanReceivePartner(order);
+        validatePartnerAvailable(deliveryPartner);
+
+        order.setDeliveryPartner(deliveryPartner);
+        deliveryPartner.setStatus(DeliveryPartnerStatus.BUSY);
+
+        deliveryPartnerRepository.save(deliveryPartner);
+        Order savedOrder = orderRepository.save(order);
+
+        return mapToResponse(savedOrder, savedOrder.getOrderItems());
+    }
+
+    @Override
     public OrderResponse markPreparing(Long id) {
 
         Order order = getOrderOrThrow(id);
@@ -172,13 +201,12 @@ public class OrderServiceImpl implements OrderService {
 
         validateCurrentStatus(order, OrderStatus.PREPARING, "Only PREPARING orders can move to OUT_FOR_DELIVERY");
 
+        if (order.getDeliveryPartner() == null) {
+            throw new IllegalArgumentException("Cannot mark order out for delivery without assigned delivery partner");
+        }
+
         order.setOrderStatus(OrderStatus.OUT_FOR_DELIVERY);
         order.setOutForDeliveryAt(LocalDateTime.now());
-
-        if (order.getDeliveryPartner() != null) {
-            order.getDeliveryPartner().setStatus(DeliveryPartnerStatus.BUSY);
-            deliveryPartnerRepository.save(order.getDeliveryPartner());
-        }
 
         Order savedOrder = orderRepository.save(order);
 
@@ -221,11 +249,45 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new EntityNotFoundException("Order not found"));
     }
 
+    private Order getOrderForUpdateOrThrow(Long id) {
+        return orderRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found"));
+    }
+
+    private DeliveryPartner getDeliveryPartnerForUpdateOrThrow(Long id) {
+        return deliveryPartnerRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new EntityNotFoundException("Delivery partner not found"));
+    }
+
     private void validateCurrentStatus(Order order, OrderStatus expectedStatus, String message) {
 
         if (order.getOrderStatus() != expectedStatus) {
             throw new IllegalArgumentException(
                     message + ". Current status is " + order.getOrderStatus()
+            );
+        }
+    }
+
+    private void validateOrderCanReceivePartner(Order order) {
+
+        if (order.getDeliveryPartner() != null) {
+            throw new IllegalArgumentException("Order already has an assigned delivery partner");
+        }
+
+        if (order.getOrderStatus() != OrderStatus.ACCEPTED
+                && order.getOrderStatus() != OrderStatus.PREPARING) {
+            throw new IllegalArgumentException(
+                    "Delivery partner can be assigned only after order is ACCEPTED or PREPARING. Current status is "
+                            + order.getOrderStatus()
+            );
+        }
+    }
+
+    private void validatePartnerAvailable(DeliveryPartner deliveryPartner) {
+
+        if (deliveryPartner.getStatus() != DeliveryPartnerStatus.AVAILABLE) {
+            throw new IllegalArgumentException(
+                    "Delivery partner is not available. Current status is " + deliveryPartner.getStatus()
             );
         }
     }

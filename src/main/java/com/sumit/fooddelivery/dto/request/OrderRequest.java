@@ -10,15 +10,13 @@ import java.util.List;
 @Data
 public class OrderRequest {
 
-    @NotNull
+    @NotNull(message = "Customer id is required")
     private Long customerId;
 
-    @NotNull
+    @NotNull(message = "Restaurant id is required")
     private Long restaurantId;
 
-    private Long deliveryPartnerId;
-
+    @NotEmpty(message = "Order must contain at least one item")
     @Valid
-    @NotEmpty
     private List<OrderItemRequest> items;
 }

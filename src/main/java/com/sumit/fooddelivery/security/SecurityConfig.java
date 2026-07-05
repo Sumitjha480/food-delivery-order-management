@@ -67,6 +67,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/orders/*/preparing")
                         .hasAnyRole("ADMIN", "RESTAURANT_OWNER")
 
+                        //Delivery Partner Assignment
+                        .requestMatchers(HttpMethod.PATCH, "/orders/*/assign-partner")
+                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER")
+
+                        .requestMatchers(HttpMethod.PATCH, "/orders/*/claim")
+                        .hasAnyRole("ADMIN", "DELIVERY_PARTNER")
+
                         // Delivery partner handles delivery-side lifecycle
                         .requestMatchers(HttpMethod.PATCH, "/orders/*/out-for-delivery")
                         .hasAnyRole("ADMIN", "DELIVERY_PARTNER")

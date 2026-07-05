@@ -17,6 +17,10 @@ public interface OrderService {
 
     OrderResponse reject(Long id, String reason);
 
+    OrderResponse assignDeliveryPartner(Long orderId, Long deliveryPartnerId);
+
+    OrderResponse claimDeliveryPartner(Long orderId, Long deliveryPartnerId);
+
     OrderResponse markPreparing(Long id);
 
     OrderResponse markOutForDelivery(Long id);
