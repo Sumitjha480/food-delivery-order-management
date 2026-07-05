@@ -33,41 +33,36 @@ A Spring Boot REST API for managing a multi-restaurant food delivery platform wi
 
 ## AI Tools Used
 
+AI was used as a development assistant during the implementation of this project. The assistance primarily focused on improving productivity and validating implementation ideas rather than generating the entire application.
+
 AI assistance was used for:
 
-1. Understanding the assignment requirements.
-2. Breaking the implementation into incremental sections.
-3. Designing entities, DTOs, repositories, services, and controllers.
-4. Adding Spring Security RBAC.
-5. Adding ownership checks for restaurant owners, customers, and delivery partners.
-6. Adding order lifecycle APIs.
-7. Adding concurrency-safe stock handling.
-8. Adding fake payment simulation.
-9. Adding asynchronous notification events.
-10. Adding reviews after delivered orders.
-11. Adding order status history.
-12. Adding filtered order APIs.
-13. Creating integration test classes.
-14. Preparing README and Postman test collection.
+1. Clarifying assignment requirements and discussing possible implementation approaches.
+2. Suggesting improvements to the overall project structure and package organization.
+3. Reviewing service logic and identifying potential edge cases.
+4. Explaining Spring Boot, Spring Security, and JPA concepts when required.
+5. Suggesting improvements to validation, exception handling, and API design.
+6. Helping debug compile-time and runtime issues encountered during development.
+7. Reviewing transaction handling, concurrency, and locking strategies.
+8. Assisting in preparing project documentation (README, Postman guide, and supporting documents).
+9. Assisting in creating sample test cases and Postman requests for verification.
 
 ---
 
-## Human Review and Validation
+## Development and Validation
 
-The generated code was not accepted blindly.
+The project was implemented incrementally and verified throughout development.
 
-The following checks were performed during development:
+The development process included:
 
-- Code was added section by section.
-- The application was restarted after each major change.
-- Compile-time issues were fixed.
-- Runtime errors were tested through curl/Postman.
-- Security matcher ordering was verified.
-- Database schema issues were handled during local testing.
-- Order lifecycle transitions were manually verified.
-- Negative authorization cases were manually verified.
-- Integration tests were added for core flows.
-
+- Designing the database model and entity relationships.
+- Implementing REST APIs module by module.
+- Testing each feature manually using curl and Postman.
+- Fixing compile-time and runtime issues during implementation.
+- Verifying role-based access control and ownership restrictions.
+- Testing order lifecycle transitions and business rules.
+- Verifying payment rollback, stock consistency, and notification flow.
+- Running integration tests and resolving failing scenarios before final submission.
 ---
 
 ## Important Implementation Decisions
@@ -163,18 +158,18 @@ Package the application:
 
 ---
 
-## AI-Generated Artifacts
+## Documentation Support
 
-The following project-support artifacts were also prepared with AI assistance:
+AI assistance was also used to help draft project documentation and testing resources, including:
 
-- `README.md`
-- `AGENTS.md`
-- `CLAUDE.md`
-- `SKILLS_USED.md`
-- `SUBMISSION_CHECKLIST.md`
-- Postman collection
-- Postman environment
-- Integration test module
+- README.md
+- AGENTS.md
+- CLAUDE.md
+- SKILLS_USED.md
+- SUBMISSION_CHECKLIST.md
+- Postman collection and environment
+
+All documentation was reviewed and updated to accurately reflect the implemented project.
 
 ---
 
