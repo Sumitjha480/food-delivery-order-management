@@ -1,3 +1,22 @@
 spring:
-  application:
-    name: food-delivery-order-management
+  datasource:
+    url: jdbc:postgresql://localhost:5432/food_delivery
+    username: sumitjha
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+    show-sql: true
+
+    properties:
+      hibernate:
+        format_sql: true
+
+  sql:
+    init:
+      mode: never
+
+server:
+  port: 8080
