@@ -216,14 +216,6 @@ Invalid review rating fails
 
 ## Common Issues
 
-### Request fails because an ID is blank
-
-Run folder `01 - Setup data and capture IDs` first.
-
-### `customer2` authentication fails
-
-Add `customer2/customer2123` and a linked customer profile in `DataInitializer`.
-
 ### Partner city mismatch test affects later tests
 
 The collection moves `partner2` back to the original test city after the mismatch test. If a request fails midway, rerun the reset request:
@@ -241,28 +233,3 @@ Notifications are asynchronous. Wait one second and rerun:
 ```
 
 ---
-
-## Recommended Reviewer Demo
-
-For a concise demo, run:
-
-```text
-00
-01
-02
-03
-04
-05
-06
-```
-
-Then show:
-
-```text
-/orders/{id}
-/orders/{id}/history
-/notifications/order/{orderId}
-/restaurants
-/delivery-partners
-/reviews
-```
