@@ -9,8 +9,17 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "reviews")
+@Table(
+        name = "reviews",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_review_order", columnNames = "order_id")
+        }
+)
 public class Review extends BaseEntity {
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false, unique = true)
+    private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
@@ -22,7 +31,9 @@ public class Review extends BaseEntity {
 
     @Min(1)
     @Max(5)
+    @Column(nullable = false)
     private Integer rating;
 
+    @Column(length = 1000)
     private String comment;
 }

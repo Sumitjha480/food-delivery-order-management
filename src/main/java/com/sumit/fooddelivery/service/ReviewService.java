@@ -7,11 +7,17 @@ import java.util.List;
 
 public interface ReviewService {
 
-    ReviewResponse create(ReviewRequest request);
+    ReviewResponse createForOrder(Long orderId, ReviewRequest request);
 
     List<ReviewResponse> getAll();
 
     ReviewResponse getById(Long id);
+
+    ReviewResponse getByOrderId(Long orderId);
+
+    List<ReviewResponse> getByRestaurantId(Long restaurantId);
+
+    List<ReviewResponse> getByCustomerId(Long customerId);
 
     ReviewResponse update(Long id, ReviewRequest request);
 

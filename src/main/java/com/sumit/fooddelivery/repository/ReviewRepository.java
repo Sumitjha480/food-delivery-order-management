@@ -9,10 +9,22 @@ import java.util.Optional;
 
 public interface ReviewRepository extends JpaRepository<Review, Long> {
 
-    @EntityGraph(attributePaths = {"customer", "restaurant"})
+    @Override
+    @EntityGraph(attributePaths = {"order", "customer", "restaurant"})
     List<Review> findAll();
 
-    @EntityGraph(attributePaths = {"customer", "restaurant"})
+    @Override
+    @EntityGraph(attributePaths = {"order", "customer", "restaurant"})
     Optional<Review> findById(Long id);
 
+    @EntityGraph(attributePaths = {"order", "customer", "restaurant"})
+    Optional<Review> findByOrder_Id(Long orderId);
+
+    boolean existsByOrder_Id(Long orderId);
+
+    @EntityGraph(attributePaths = {"order", "customer", "restaurant"})
+    List<Review> findByRestaurant_IdOrderByCreatedAtDesc(Long restaurantId);
+
+    @EntityGraph(attributePaths = {"order", "customer", "restaurant"})
+    List<Review> findByCustomer_IdOrderByCreatedAtDesc(Long customerId);
 }

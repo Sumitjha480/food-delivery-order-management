@@ -10,34 +10,53 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/reviews")
 @RequiredArgsConstructor
 public class ReviewController {
 
     private final ReviewService reviewService;
 
-    @PostMapping
-    public ReviewResponse create(@Valid @RequestBody ReviewRequest request) {
-        return reviewService.create(request);
+    @PostMapping("/orders/{orderId}/review")
+    public ReviewResponse createForOrder(
+            @PathVariable Long orderId,
+            @Valid @RequestBody ReviewRequest request
+    ) {
+        return reviewService.createForOrder(orderId, request);
     }
 
-    @GetMapping
+    @GetMapping("/orders/{orderId}/review")
+    public ReviewResponse getByOrder(@PathVariable Long orderId) {
+        return reviewService.getByOrderId(orderId);
+    }
+
+    @GetMapping("/reviews")
     public List<ReviewResponse> getAll() {
         return reviewService.getAll();
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/reviews/{id}")
     public ReviewResponse get(@PathVariable Long id) {
         return reviewService.getById(id);
     }
 
-    @PutMapping("/{id}")
-    public ReviewResponse update(@PathVariable Long id,
-                                 @Valid @RequestBody ReviewRequest request) {
+    @GetMapping("/restaurants/{restaurantId}/reviews")
+    public List<ReviewResponse> getByRestaurant(@PathVariable Long restaurantId) {
+        return reviewService.getByRestaurantId(restaurantId);
+    }
+
+    @GetMapping("/customers/{customerId}/reviews")
+    public List<ReviewResponse> getByCustomer(@PathVariable Long customerId) {
+        return reviewService.getByCustomerId(customerId);
+    }
+
+    @PutMapping("/reviews/{id}")
+    public ReviewResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody ReviewRequest request
+    ) {
         return reviewService.update(id, request);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/reviews/{id}")
     public void delete(@PathVariable Long id) {
         reviewService.delete(id);
     }

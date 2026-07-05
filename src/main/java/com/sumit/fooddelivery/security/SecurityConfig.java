@@ -89,7 +89,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/orders/**")
                         .hasRole("ADMIN")
 
-                        // Admin manages customers
+                        .requestMatchers(HttpMethod.GET, "/customers/*/reviews")
+                        .hasAnyRole("ADMIN", "CUSTOMER")
+
+                         // Admin manages customers
                         .requestMatchers("/customers/**")
                         .hasRole("ADMIN")
 
@@ -97,18 +100,30 @@ public class SecurityConfig {
                         .requestMatchers("/delivery-partners/**")
                         .hasRole("ADMIN")
 
-                        // Reviews
-                        .requestMatchers(HttpMethod.GET, "/reviews/**")
-                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
+// Order-based reviews
+                                .requestMatchers(HttpMethod.POST, "/orders/*/review")
+                                .hasAnyRole("CUSTOMER", "ADMIN")
 
-                        .requestMatchers(HttpMethod.POST, "/reviews/**")
-                        .hasAnyRole("CUSTOMER", "ADMIN")
+                                .requestMatchers(HttpMethod.GET, "/orders/*/review")
+                                .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
 
-                        .requestMatchers(HttpMethod.PUT, "/reviews/**")
-                        .hasAnyRole("CUSTOMER", "ADMIN")
+// Restaurant/customer review browsing
+                                .requestMatchers(HttpMethod.GET, "/restaurants/*/reviews")
+                                .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
 
-                        .requestMatchers(HttpMethod.DELETE, "/reviews/**")
-                        .hasAnyRole("CUSTOMER", "ADMIN")
+                                .requestMatchers(HttpMethod.GET, "/customers/*/reviews")
+                                .hasAnyRole("ADMIN", "CUSTOMER")
+
+// Reviews
+                                .requestMatchers(HttpMethod.GET, "/reviews/**")
+                                .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
+
+                                .requestMatchers(HttpMethod.PUT, "/reviews/**")
+                                .hasAnyRole("CUSTOMER", "ADMIN")
+
+                                .requestMatchers(HttpMethod.DELETE, "/reviews/**")
+                                .hasAnyRole("CUSTOMER", "ADMIN")
+
 
                         // Notifications
                         .requestMatchers(HttpMethod.GET, "/notifications/**")
