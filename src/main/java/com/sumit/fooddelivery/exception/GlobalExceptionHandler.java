@@ -1,6 +1,8 @@
 package com.sumit.fooddelivery.exception;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.PessimisticLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +43,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<Map<String, Object>> handleOptimisticLock(ObjectOptimisticLockingFailureException ex) {
         return buildResponse(HttpStatus.CONFLICT, "The resource was updated by another request. Please retry.");
+    }
+
+    @ExceptionHandler({
+            PessimisticLockException.class,
+            LockTimeoutException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleLockException(Exception ex) {
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                "Menu item stock is currently being updated by another order. Please retry."
+        );
     }
 
     @ExceptionHandler(AccessDeniedException.class)

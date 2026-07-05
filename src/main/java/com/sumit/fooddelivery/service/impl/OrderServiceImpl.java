@@ -18,7 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -48,12 +50,14 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderStatus(OrderStatus.PLACED);
         order.setPaymentStatus(PaymentStatus.PENDING);
 
+        List<OrderItemRequest> mergedItems = mergeDuplicateMenuItems(request.getItems());
+
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
 
-        for (OrderItemRequest itemReq : request.getItems()) {
+        for (OrderItemRequest itemReq : mergedItems) {
 
-            MenuItem menuItem = menuItemRepository.findById(itemReq.getMenuItemId())
+            MenuItem menuItem = menuItemRepository.findByIdForUpdate(itemReq.getMenuItemId())
                     .orElseThrow(() -> new EntityNotFoundException("Menu item not found"));
 
             if (!menuItem.getRestaurant().getId().equals(restaurant.getId())) {
@@ -63,7 +67,11 @@ public class OrderServiceImpl implements OrderService {
             }
 
             if (menuItem.getStock() < itemReq.getQuantity()) {
-                throw new IllegalArgumentException("Insufficient stock for item: " + menuItem.getName());
+                throw new IllegalArgumentException(
+                        "Insufficient stock for item: " + menuItem.getName()
+                                + ". Available stock: " + menuItem.getStock()
+                                + ", requested quantity: " + itemReq.getQuantity()
+                );
             }
 
             menuItem.setStock(menuItem.getStock() - itemReq.getQuantity());
@@ -331,4 +339,28 @@ public class OrderServiceImpl implements OrderService {
                 .items(itemResponses)
                 .build();
     }
+
+    private List<OrderItemRequest> mergeDuplicateMenuItems(List<OrderItemRequest> items) {
+
+        Map<Long, Integer> quantityByMenuItemId = new LinkedHashMap<>();
+
+        for (OrderItemRequest item : items) {
+            quantityByMenuItemId.merge(
+                    item.getMenuItemId(),
+                    item.getQuantity(),
+                    Integer::sum
+            );
+        }
+
+        return quantityByMenuItemId.entrySet()
+                .stream()
+                .map(entry -> {
+                    OrderItemRequest request = new OrderItemRequest();
+                    request.setMenuItemId(entry.getKey());
+                    request.setQuantity(entry.getValue());
+                    return request;
+                })
+                .toList();
+    }
+
 }
