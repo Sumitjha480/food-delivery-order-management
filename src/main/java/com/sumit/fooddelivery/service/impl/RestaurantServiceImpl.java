@@ -4,11 +4,14 @@ import com.sumit.fooddelivery.dto.request.RestaurantRequest;
 import com.sumit.fooddelivery.dto.response.RestaurantResponse;
 import com.sumit.fooddelivery.entity.City;
 import com.sumit.fooddelivery.entity.Restaurant;
+import com.sumit.fooddelivery.entity.User;
 import com.sumit.fooddelivery.enums.CityStatus;
 import com.sumit.fooddelivery.enums.RestaurantStatus;
+import com.sumit.fooddelivery.enums.UserRole;
 import com.sumit.fooddelivery.exception.ResourceNotFoundException;
 import com.sumit.fooddelivery.repository.CityRepository;
 import com.sumit.fooddelivery.repository.RestaurantRepository;
+import com.sumit.fooddelivery.repository.UserRepository;
 import com.sumit.fooddelivery.service.RestaurantService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -24,17 +27,20 @@ public class RestaurantServiceImpl implements RestaurantService {
 
     private final RestaurantRepository restaurantRepository;
     private final CityRepository cityRepository;
+    private final UserRepository userRepository;
 
     @Override
     public RestaurantResponse createRestaurant(RestaurantRequest request) {
 
         City city = getActiveCityOrThrow(request.getCityId());
+        User owner = getRestaurantOwnerOrThrow(request.getOwnerUsername());
 
         Restaurant restaurant = new Restaurant();
         restaurant.setName(request.getName());
         restaurant.setAddress(request.getAddress());
         restaurant.setCity(city.getName());
         restaurant.setCityEntity(city);
+        restaurant.setOwner(owner);
         restaurant.setEstimatedDeliveryTime(request.getEstimatedDeliveryTime());
         restaurant.setStatus(RestaurantStatus.ACTIVE);
 
@@ -78,11 +84,13 @@ public class RestaurantServiceImpl implements RestaurantService {
                         new ResourceNotFoundException("Restaurant not found with id : " + id));
 
         City city = getActiveCityOrThrow(request.getCityId());
+        User owner = getRestaurantOwnerOrThrow(request.getOwnerUsername());
 
         restaurant.setName(request.getName());
         restaurant.setAddress(request.getAddress());
         restaurant.setCity(city.getName());
         restaurant.setCityEntity(city);
+        restaurant.setOwner(owner);
         restaurant.setEstimatedDeliveryTime(request.getEstimatedDeliveryTime());
 
         return mapToResponse(restaurantRepository.save(restaurant));
@@ -110,9 +118,22 @@ public class RestaurantServiceImpl implements RestaurantService {
         return city;
     }
 
+    private User getRestaurantOwnerOrThrow(String ownerUsername) {
+
+        User owner = userRepository.findByUsername(ownerUsername)
+                .orElseThrow(() -> new EntityNotFoundException("Owner user not found"));
+
+        if (owner.getRole() != UserRole.RESTAURANT_OWNER) {
+            throw new IllegalArgumentException("User must have RESTAURANT_OWNER role");
+        }
+
+        return owner;
+    }
+
     private RestaurantResponse mapToResponse(Restaurant restaurant) {
 
         City city = restaurant.getCityEntity();
+        User owner = restaurant.getOwner();
 
         return RestaurantResponse.builder()
                 .id(restaurant.getId())
@@ -120,6 +141,8 @@ public class RestaurantServiceImpl implements RestaurantService {
                 .address(restaurant.getAddress())
                 .cityId(city != null ? city.getId() : null)
                 .cityName(city != null ? city.getName() : restaurant.getCity())
+                .ownerId(owner != null ? owner.getId() : null)
+                .ownerUsername(owner != null ? owner.getUsername() : null)
                 .estimatedDeliveryTime(restaurant.getEstimatedDeliveryTime())
                 .status(restaurant.getStatus())
                 .build();

@@ -10,6 +10,7 @@ import com.sumit.fooddelivery.enums.OrderStatus;
 import com.sumit.fooddelivery.enums.PaymentStatus;
 import com.sumit.fooddelivery.payment.PaymentResult;
 import com.sumit.fooddelivery.repository.*;
+import com.sumit.fooddelivery.security.CurrentUserService;
 import com.sumit.fooddelivery.service.OrderService;
 import com.sumit.fooddelivery.service.PaymentService;
 import jakarta.persistence.EntityNotFoundException;
@@ -40,6 +41,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemRepository orderItemRepository;
     private final PaymentService paymentService;
     private final ApplicationEventPublisher eventPublisher;
+    private final CurrentUserService currentUserService;
 
 
     @Override
@@ -144,6 +146,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse accept(Long id) {
 
         Order order = getOrderOrThrow(id);
+        currentUserService.requireAdminOrRestaurantOwner(order.getRestaurant());
 
         OrderStatus oldStatus = order.getOrderStatus();
 
@@ -167,6 +170,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse reject(Long id, String reason) {
 
         Order order = getOrderOrThrow(id);
+        currentUserService.requireAdminOrRestaurantOwner(order.getRestaurant());
 
         OrderStatus oldStatus = order.getOrderStatus();
 
@@ -199,6 +203,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse assignDeliveryPartner(Long orderId, Long deliveryPartnerId) {
 
         Order order = getOrderForUpdateOrThrow(orderId);
+        currentUserService.requireAdminOrRestaurantOwner(order.getRestaurant());
         DeliveryPartner deliveryPartner = getDeliveryPartnerForUpdateOrThrow(deliveryPartnerId);
 
         validateOrderCanReceivePartner(order);
@@ -241,6 +246,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse markPreparing(Long id) {
 
         Order order = getOrderOrThrow(id);
+        currentUserService.requireAdminOrRestaurantOwner(order.getRestaurant());
 
         OrderStatus oldStatus = order.getOrderStatus();
 

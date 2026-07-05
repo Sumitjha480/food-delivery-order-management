@@ -19,6 +19,9 @@ public class RestaurantRequest {
     @NotNull(message = "City id is required")
     private Long cityId;
 
+    @NotBlank(message = "Owner username is required")
+    private String ownerUsername;
+
     @NotNull(message = "Estimated delivery time is required")
     @Positive(message = "Estimated delivery time must be positive")
     private Integer estimatedDeliveryTime;

@@ -20,6 +20,10 @@ public class RestaurantResponse {
 
     private String cityName;
 
+    private Long ownerId;
+
+    private String ownerUsername;
+
     private Integer estimatedDeliveryTime;
 
     private RestaurantStatus status;

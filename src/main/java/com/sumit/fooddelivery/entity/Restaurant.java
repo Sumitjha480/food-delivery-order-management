@@ -24,6 +24,10 @@ public class Restaurant extends BaseEntity {
     @JoinColumn(name = "city_id")
     private City cityEntity;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
+
     @Column(nullable = false)
     private String address;
 

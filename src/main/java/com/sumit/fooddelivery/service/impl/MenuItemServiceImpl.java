@@ -7,41 +7,43 @@ import com.sumit.fooddelivery.entity.Restaurant;
 import com.sumit.fooddelivery.exception.ResourceNotFoundException;
 import com.sumit.fooddelivery.repository.MenuItemRepository;
 import com.sumit.fooddelivery.repository.RestaurantRepository;
+import com.sumit.fooddelivery.security.CurrentUserService;
 import com.sumit.fooddelivery.service.MenuItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class MenuItemServiceImpl implements MenuItemService {
 
     private final MenuItemRepository menuItemRepository;
     private final RestaurantRepository restaurantRepository;
+    private final CurrentUserService currentUserService;
 
     @Override
-    public MenuItemResponse createMenuItem(Long restaurantId,
-                                           MenuItemRequest request) {
+    public MenuItemResponse createMenuItem(Long restaurantId, MenuItemRequest request) {
 
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Restaurant not found with id : " + restaurantId));
+                        new ResourceNotFoundException("Restaurant not found with id : " + restaurantId));
+
+        currentUserService.requireAdminOrRestaurantOwner(restaurant);
 
         MenuItem menuItem = new MenuItem();
-
         menuItem.setName(request.getName());
         menuItem.setPrice(request.getPrice());
         menuItem.setStock(request.getStock());
         menuItem.setRestaurant(restaurant);
 
-        menuItem = menuItemRepository.save(menuItem);
-
-        return mapToResponse(menuItem);
+        return mapToResponse(menuItemRepository.save(menuItem));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<MenuItemResponse> getMenuItems(Long restaurantId) {
 
         return menuItemRepository.findByRestaurantId(restaurantId)
@@ -51,32 +53,30 @@ public class MenuItemServiceImpl implements MenuItemService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public MenuItemResponse getMenuItem(Long id) {
 
         MenuItem menuItem = menuItemRepository.findById(id)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Menu item not found with id : " + id));
+                        new ResourceNotFoundException("Menu item not found with id : " + id));
 
         return mapToResponse(menuItem);
     }
 
     @Override
-    public MenuItemResponse updateMenuItem(Long id,
-                                           MenuItemRequest request) {
+    public MenuItemResponse updateMenuItem(Long id, MenuItemRequest request) {
 
         MenuItem menuItem = menuItemRepository.findById(id)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Menu item not found with id : " + id));
+                        new ResourceNotFoundException("Menu item not found with id : " + id));
+
+        currentUserService.requireAdminOrRestaurantOwner(menuItem.getRestaurant());
 
         menuItem.setName(request.getName());
         menuItem.setPrice(request.getPrice());
         menuItem.setStock(request.getStock());
 
-        menuItem = menuItemRepository.save(menuItem);
-
-        return mapToResponse(menuItem);
+        return mapToResponse(menuItemRepository.save(menuItem));
     }
 
     @Override
@@ -84,8 +84,9 @@ public class MenuItemServiceImpl implements MenuItemService {
 
         MenuItem menuItem = menuItemRepository.findById(id)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Menu item not found with id : " + id));
+                        new ResourceNotFoundException("Menu item not found with id : " + id));
+
+        currentUserService.requireAdminOrRestaurantOwner(menuItem.getRestaurant());
 
         menuItemRepository.delete(menuItem);
     }

@@ -30,14 +30,17 @@ public class DataInitializer implements CommandLineRunner {
 
         createUserIfNotExists("admin", "admin123", UserRole.ADMIN);
         createUserIfNotExists("owner", "owner123", UserRole.RESTAURANT_OWNER);
+        createUserIfNotExists("owner2", "owner2123", UserRole.RESTAURANT_OWNER);
         createUserIfNotExists("customer", "customer123", UserRole.CUSTOMER);
         createUserIfNotExists("partner", "partner123", UserRole.DELIVERY_PARTNER);
+        User owner = userRepository.findByUsername("owner")
+                .orElseThrow(() -> new IllegalStateException("Demo owner user not found"));
 
         City city = createCityIfNotExists("Delhi");
 
         createCustomerIfNotExists();
 
-        Restaurant restaurant = createRestaurantIfNotExists(city);
+        Restaurant restaurant = createRestaurantIfNotExists(city, owner);
 
         createMenuItemIfNotExists(restaurant);
 
@@ -85,19 +88,27 @@ public class DataInitializer implements CommandLineRunner {
                 });
     }
 
-    private Restaurant createRestaurantIfNotExists(City city) {
+    private Restaurant createRestaurantIfNotExists(City city, User owner) {
 
         return restaurantRepository.findAll()
                 .stream()
                 .filter(restaurant -> "Pizza Palace".equals(restaurant.getName()))
                 .findFirst()
                 .map(existing -> {
+                    boolean changed = false;
+
                     if (existing.getCityEntity() == null) {
                         existing.setCityEntity(city);
                         existing.setCity(city.getName());
-                        return restaurantRepository.save(existing);
+                        changed = true;
                     }
-                    return existing;
+
+                    if (existing.getOwner() == null) {
+                        existing.setOwner(owner);
+                        changed = true;
+                    }
+
+                    return changed ? restaurantRepository.save(existing) : existing;
                 })
                 .orElseGet(() -> {
                     Restaurant restaurant = new Restaurant();
@@ -105,6 +116,7 @@ public class DataInitializer implements CommandLineRunner {
                     restaurant.setAddress("Connaught Place");
                     restaurant.setCity(city.getName());
                     restaurant.setCityEntity(city);
+                    restaurant.setOwner(owner);
                     restaurant.setStatus(RestaurantStatus.ACTIVE);
                     restaurant.setEstimatedDeliveryTime(30);
                     return restaurantRepository.save(restaurant);
