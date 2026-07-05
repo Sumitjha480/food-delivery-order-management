@@ -110,6 +110,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/reviews/**")
                         .hasAnyRole("CUSTOMER", "ADMIN")
 
+                        // Notifications
+                        .requestMatchers(HttpMethod.GET, "/notifications/**")
+                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
+
+                        .requestMatchers(HttpMethod.PATCH, "/notifications/*/read")
+                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
+
                         .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults())

@@ -14,6 +14,9 @@ import com.sumit.fooddelivery.service.OrderService;
 import com.sumit.fooddelivery.service.PaymentService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import com.sumit.fooddelivery.event.DeliveryPartnerAssignedEvent;
+import com.sumit.fooddelivery.event.OrderStatusChangedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +39,8 @@ public class OrderServiceImpl implements OrderService {
     private final MenuItemRepository menuItemRepository;
     private final OrderItemRepository orderItemRepository;
     private final PaymentService paymentService;
+    private final ApplicationEventPublisher eventPublisher;
+
 
     @Override
     public OrderResponse create(OrderRequest request) {
@@ -112,6 +117,7 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepository.save(order);
         orderItemRepository.saveAll(orderItems);
+        publishOrderStatusChanged(savedOrder, null);
 
         return mapToResponse(savedOrder, orderItems);
     }
@@ -139,6 +145,8 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = getOrderOrThrow(id);
 
+        OrderStatus oldStatus = order.getOrderStatus();
+
         validateCurrentStatus(order, OrderStatus.PLACED, "Only PLACED orders can be accepted");
 
         if (order.getPaymentStatus() != PaymentStatus.SUCCESS) {
@@ -150,6 +158,8 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
+        publishOrderStatusChanged(savedOrder, oldStatus);
+
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
     }
 
@@ -157,6 +167,8 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse reject(Long id, String reason) {
 
         Order order = getOrderOrThrow(id);
+
+        OrderStatus oldStatus = order.getOrderStatus();
 
         validateCurrentStatus(order, OrderStatus.PLACED, "Only PLACED orders can be rejected");
 
@@ -178,6 +190,8 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
+        publishOrderStatusChanged(savedOrder, oldStatus);
+
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
     }
 
@@ -195,6 +209,8 @@ public class OrderServiceImpl implements OrderService {
 
         deliveryPartnerRepository.save(deliveryPartner);
         Order savedOrder = orderRepository.save(order);
+
+        publishDeliveryPartnerAssigned(savedOrder, deliveryPartner);
 
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
     }
@@ -214,6 +230,8 @@ public class OrderServiceImpl implements OrderService {
         deliveryPartnerRepository.save(deliveryPartner);
         Order savedOrder = orderRepository.save(order);
 
+        publishDeliveryPartnerAssigned(savedOrder, deliveryPartner);
+
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
     }
 
@@ -222,12 +240,16 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = getOrderOrThrow(id);
 
+        OrderStatus oldStatus = order.getOrderStatus();
+
         validateCurrentStatus(order, OrderStatus.ACCEPTED, "Only ACCEPTED orders can move to PREPARING");
 
         order.setOrderStatus(OrderStatus.PREPARING);
         order.setPreparingAt(LocalDateTime.now());
 
         Order savedOrder = orderRepository.save(order);
+
+        publishOrderStatusChanged(savedOrder, oldStatus);
 
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
     }
@@ -236,6 +258,8 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse markOutForDelivery(Long id) {
 
         Order order = getOrderOrThrow(id);
+
+        OrderStatus oldStatus = order.getOrderStatus();
 
         validateCurrentStatus(order, OrderStatus.PREPARING, "Only PREPARING orders can move to OUT_FOR_DELIVERY");
 
@@ -248,6 +272,8 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
+        publishOrderStatusChanged(savedOrder, oldStatus);
+
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
     }
 
@@ -255,6 +281,8 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse markDelivered(Long id) {
 
         Order order = getOrderOrThrow(id);
+
+        OrderStatus oldStatus = order.getOrderStatus();
 
         validateCurrentStatus(order, OrderStatus.OUT_FOR_DELIVERY, "Only OUT_FOR_DELIVERY orders can be delivered");
 
@@ -267,6 +295,8 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Order savedOrder = orderRepository.save(order);
+
+        publishOrderStatusChanged(savedOrder, oldStatus);
 
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
     }
@@ -396,4 +426,24 @@ public class OrderServiceImpl implements OrderService {
                 .items(itemResponses)
                 .build();
     }
+
+    private void publishOrderStatusChanged(Order order, OrderStatus oldStatus) {
+        eventPublisher.publishEvent(
+                new OrderStatusChangedEvent(
+                        order.getId(),
+                        oldStatus,
+                        order.getOrderStatus()
+                )
+        );
+    }
+
+    private void publishDeliveryPartnerAssigned(Order order, DeliveryPartner deliveryPartner) {
+        eventPublisher.publishEvent(
+                new DeliveryPartnerAssignedEvent(
+                        order.getId(),
+                        deliveryPartner.getId()
+                )
+        );
+    }
+
 }
