@@ -92,11 +92,19 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/customers/*/reviews")
                         .hasAnyRole("ADMIN", "CUSTOMER")
 
-                         // Admin manages customers
-                        .requestMatchers("/customers/**")
-                        .hasRole("ADMIN")
+                                // Customer self profile
+                                .requestMatchers(HttpMethod.GET, "/customers/me")
+                                .hasRole("CUSTOMER")
 
-                        // Admin manages delivery partners
+                                .requestMatchers(HttpMethod.PUT, "/customers/me")
+                                .hasRole("CUSTOMER")
+
+// Admin manages all customer records
+                                .requestMatchers("/customers/**")
+                                .hasRole("ADMIN")
+
+
+                                // Admin manages delivery partners
                         .requestMatchers("/delivery-partners/**")
                         .hasRole("ADMIN")
 

@@ -1,8 +1,10 @@
 package com.sumit.fooddelivery.security;
 
+import com.sumit.fooddelivery.entity.Customer;
 import com.sumit.fooddelivery.entity.Restaurant;
 import com.sumit.fooddelivery.entity.User;
 import com.sumit.fooddelivery.enums.UserRole;
+import com.sumit.fooddelivery.repository.CustomerRepository;
 import com.sumit.fooddelivery.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 public class CurrentUserService {
 
     private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
 
     public User getCurrentUser() {
 
@@ -28,6 +31,18 @@ public class CurrentUserService {
 
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new AccessDeniedException("Authenticated user not found"));
+    }
+
+    public Customer getCurrentCustomer() {
+
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() != UserRole.CUSTOMER) {
+            throw new AccessDeniedException("Current user is not a customer");
+        }
+
+        return customerRepository.findByUser_Username(currentUser.getUsername())
+                .orElseThrow(() -> new AccessDeniedException("Customer profile not found for current user"));
     }
 
     public boolean hasRole(UserRole role) {
@@ -63,6 +78,27 @@ public class CurrentUserService {
 
         if (!restaurant.getOwner().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("You can manage only your own restaurant");
+        }
+    }
+
+    public void requireAdminOrCustomer(Customer customer) {
+
+        if (hasRole(UserRole.ADMIN)) {
+            return;
+        }
+
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() != UserRole.CUSTOMER) {
+            throw new AccessDeniedException("Only admin or customer can perform this action");
+        }
+
+        if (customer.getUser() == null) {
+            throw new AccessDeniedException("Customer profile is not linked to a user");
+        }
+
+        if (!customer.getUser().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("You can access only your own customer profile");
         }
     }
 }

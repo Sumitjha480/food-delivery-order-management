@@ -35,10 +35,12 @@ public class DataInitializer implements CommandLineRunner {
         createUserIfNotExists("partner", "partner123", UserRole.DELIVERY_PARTNER);
         User owner = userRepository.findByUsername("owner")
                 .orElseThrow(() -> new IllegalStateException("Demo owner user not found"));
+        User customerUser = userRepository.findByUsername("customer")
+                .orElseThrow(() -> new IllegalStateException("Demo customer user not found"));
 
         City city = createCityIfNotExists("Delhi");
 
-        createCustomerIfNotExists();
+        createCustomerIfNotExists(customerUser);
 
         Restaurant restaurant = createRestaurantIfNotExists(city, owner);
 
@@ -72,14 +74,22 @@ public class DataInitializer implements CommandLineRunner {
                 });
     }
 
-    private Customer createCustomerIfNotExists() {
+    private Customer createCustomerIfNotExists(User customerUser) {
 
         return customerRepository.findAll()
                 .stream()
                 .filter(customer -> "customer@test.com".equals(customer.getEmail()))
                 .findFirst()
+                .map(existing -> {
+                    if (existing.getUser() == null) {
+                        existing.setUser(customerUser);
+                        return customerRepository.save(existing);
+                    }
+                    return existing;
+                })
                 .orElseGet(() -> {
                     Customer customer = new Customer();
+                    customer.setUser(customerUser);
                     customer.setName("Test Customer");
                     customer.setEmail("customer@test.com");
                     customer.setPhone("9999999999");
@@ -87,6 +97,7 @@ public class DataInitializer implements CommandLineRunner {
                     return customerRepository.save(customer);
                 });
     }
+
 
     private Restaurant createRestaurantIfNotExists(City city, User owner) {
 

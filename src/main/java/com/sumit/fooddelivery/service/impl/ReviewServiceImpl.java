@@ -7,6 +7,7 @@ import com.sumit.fooddelivery.entity.Review;
 import com.sumit.fooddelivery.enums.OrderStatus;
 import com.sumit.fooddelivery.repository.OrderRepository;
 import com.sumit.fooddelivery.repository.ReviewRepository;
+import com.sumit.fooddelivery.security.CurrentUserService;
 import com.sumit.fooddelivery.service.ReviewService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -22,12 +23,14 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final OrderRepository orderRepository;
+    private final CurrentUserService currentUserService;
 
     @Override
     public ReviewResponse createForOrder(Long orderId, ReviewRequest request) {
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found"));
+        currentUserService.requireAdminOrCustomer(order.getCustomer());
 
         if (order.getOrderStatus() != OrderStatus.DELIVERED) {
             throw new IllegalArgumentException(
@@ -96,6 +99,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         Review review = reviewRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Review not found"));
+        currentUserService.requireAdminOrCustomer(review.getCustomer());
 
         if (review.getOrder().getOrderStatus() != OrderStatus.DELIVERED) {
             throw new IllegalArgumentException("Only reviews for delivered orders can be updated");

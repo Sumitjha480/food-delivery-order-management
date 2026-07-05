@@ -1,6 +1,8 @@
 package com.sumit.fooddelivery.controller;
 
-import com.sumit.fooddelivery.entity.Customer;
+import com.sumit.fooddelivery.dto.request.CustomerRequest;
+import com.sumit.fooddelivery.dto.request.CustomerUpdateRequest;
+import com.sumit.fooddelivery.dto.response.CustomerResponse;
 import com.sumit.fooddelivery.service.CustomerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,28 +18,40 @@ public class CustomerController {
     private final CustomerService customerService;
 
     @PostMapping
-    public Customer create(@Valid @RequestBody Customer customer){
-        return customerService.create(customer);
+    public CustomerResponse create(@Valid @RequestBody CustomerRequest request) {
+        return customerService.create(request);
     }
 
     @GetMapping
-    public List<Customer> getAll(){
+    public List<CustomerResponse> getAll() {
         return customerService.getAll();
     }
 
+    @GetMapping("/me")
+    public CustomerResponse getMe() {
+        return customerService.getMe();
+    }
+
+    @PutMapping("/me")
+    public CustomerResponse updateMe(@Valid @RequestBody CustomerUpdateRequest request) {
+        return customerService.updateMe(request);
+    }
+
     @GetMapping("/{id}")
-    public Customer get(@PathVariable Long id){
+    public CustomerResponse get(@PathVariable Long id) {
         return customerService.get(id);
     }
 
     @PutMapping("/{id}")
-    public Customer update(@PathVariable Long id,
-                           @Valid @RequestBody Customer customer){
-        return customerService.update(id, customer);
+    public CustomerResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody CustomerUpdateRequest request
+    ) {
+        return customerService.update(id, request);
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id){
+    public void delete(@PathVariable Long id) {
         customerService.delete(id);
     }
 }

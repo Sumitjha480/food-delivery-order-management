@@ -49,6 +49,7 @@ public class OrderServiceImpl implements OrderService {
 
         Customer customer = customerRepository.findById(request.getCustomerId())
                 .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+        currentUserService.requireAdminOrCustomer(customer);
 
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new EntityNotFoundException("Restaurant not found"));
