@@ -13,5 +13,15 @@ public interface OrderService {
 
     OrderResponse getById(Long id);
 
+    OrderResponse accept(Long id);
+
+    OrderResponse reject(Long id, String reason);
+
+    OrderResponse markPreparing(Long id);
+
+    OrderResponse markOutForDelivery(Long id);
+
+    OrderResponse markDelivered(Long id);
+
     void delete(Long id);
 }

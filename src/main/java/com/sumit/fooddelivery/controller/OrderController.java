@@ -1,6 +1,7 @@
 package com.sumit.fooddelivery.controller;
 
 import com.sumit.fooddelivery.dto.request.OrderRequest;
+import com.sumit.fooddelivery.dto.request.RejectOrderRequest;
 import com.sumit.fooddelivery.dto.response.OrderResponse;
 import com.sumit.fooddelivery.service.OrderService;
 import jakarta.validation.Valid;
@@ -29,6 +30,35 @@ public class OrderController {
     @GetMapping("/{id}")
     public OrderResponse getById(@PathVariable Long id) {
         return orderService.getById(id);
+    }
+
+    @PatchMapping("/{id}/accept")
+    public OrderResponse accept(@PathVariable Long id) {
+        return orderService.accept(id);
+    }
+
+    @PatchMapping("/{id}/reject")
+    public OrderResponse reject(
+            @PathVariable Long id,
+            @Valid @RequestBody(required = false) RejectOrderRequest request
+    ) {
+        String reason = request != null ? request.getReason() : null;
+        return orderService.reject(id, reason);
+    }
+
+    @PatchMapping("/{id}/preparing")
+    public OrderResponse markPreparing(@PathVariable Long id) {
+        return orderService.markPreparing(id);
+    }
+
+    @PatchMapping("/{id}/out-for-delivery")
+    public OrderResponse markOutForDelivery(@PathVariable Long id) {
+        return orderService.markOutForDelivery(id);
+    }
+
+    @PatchMapping("/{id}/delivered")
+    public OrderResponse markDelivered(@PathVariable Long id) {
+        return orderService.markDelivered(id);
     }
 
     @DeleteMapping("/{id}")

@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -25,6 +26,18 @@ public class OrderResponse {
     private OrderStatus orderStatus;
 
     private PaymentStatus paymentStatus;
+
+    private LocalDateTime acceptedAt;
+
+    private LocalDateTime preparingAt;
+
+    private LocalDateTime outForDeliveryAt;
+
+    private LocalDateTime deliveredAt;
+
+    private LocalDateTime rejectedAt;
+
+    private String rejectionReason;
 
     private List<OrderItemResponse> items;
 }

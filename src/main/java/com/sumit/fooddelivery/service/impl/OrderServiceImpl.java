@@ -5,6 +5,7 @@ import com.sumit.fooddelivery.dto.request.OrderRequest;
 import com.sumit.fooddelivery.dto.response.OrderItemResponse;
 import com.sumit.fooddelivery.dto.response.OrderResponse;
 import com.sumit.fooddelivery.entity.*;
+import com.sumit.fooddelivery.enums.DeliveryPartnerStatus;
 import com.sumit.fooddelivery.enums.OrderStatus;
 import com.sumit.fooddelivery.enums.PaymentStatus;
 import com.sumit.fooddelivery.repository.*;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -61,8 +63,14 @@ public class OrderServiceImpl implements OrderService {
             MenuItem menuItem = menuItemRepository.findById(itemReq.getMenuItemId())
                     .orElseThrow(() -> new EntityNotFoundException("Menu item not found"));
 
+            if (!menuItem.getRestaurant().getId().equals(restaurant.getId())) {
+                throw new IllegalArgumentException(
+                        "Menu item " + menuItem.getId() + " does not belong to restaurant " + restaurant.getId()
+                );
+            }
+
             if (menuItem.getStock() < itemReq.getQuantity()) {
-                throw new RuntimeException("Insufficient stock for item: " + menuItem.getName());
+                throw new IllegalArgumentException("Insufficient stock for item: " + menuItem.getName());
             }
 
             menuItem.setStock(menuItem.getStock() - itemReq.getQuantity());
@@ -72,7 +80,6 @@ public class OrderServiceImpl implements OrderService {
             orderItem.setMenuItem(menuItem);
             orderItem.setQuantity(itemReq.getQuantity());
             orderItem.setPrice(menuItem.getPrice());
-
             orderItem.setOrder(order);
 
             orderItems.add(orderItem);
@@ -84,13 +91,13 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalAmount(total);
 
         Order savedOrder = orderRepository.save(order);
-
         orderItemRepository.saveAll(orderItems);
 
         return mapToResponse(savedOrder, orderItems);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<OrderResponse> getAll() {
         return orderRepository.findAll()
                 .stream()
@@ -99,20 +106,138 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public OrderResponse getById(Long id) {
 
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Order not found"));
+        Order order = getOrderOrThrow(id);
 
         return mapToResponse(order, order.getOrderItems());
     }
 
     @Override
+    public OrderResponse accept(Long id) {
+
+        Order order = getOrderOrThrow(id);
+
+        validateCurrentStatus(order, OrderStatus.PLACED, "Only PLACED orders can be accepted");
+
+        order.setOrderStatus(OrderStatus.ACCEPTED);
+        order.setAcceptedAt(LocalDateTime.now());
+
+        Order savedOrder = orderRepository.save(order);
+
+        return mapToResponse(savedOrder, savedOrder.getOrderItems());
+    }
+
+    @Override
+    public OrderResponse reject(Long id, String reason) {
+
+        Order order = getOrderOrThrow(id);
+
+        validateCurrentStatus(order, OrderStatus.PLACED, "Only PLACED orders can be rejected");
+
+        restoreStock(order);
+
+        order.setOrderStatus(OrderStatus.REJECTED);
+        order.setPaymentStatus(PaymentStatus.FAILED);
+        order.setRejectedAt(LocalDateTime.now());
+        order.setRejectionReason(reason != null && !reason.isBlank()
+                ? reason
+                : "Rejected by restaurant");
+
+        Order savedOrder = orderRepository.save(order);
+
+        return mapToResponse(savedOrder, savedOrder.getOrderItems());
+    }
+
+    @Override
+    public OrderResponse markPreparing(Long id) {
+
+        Order order = getOrderOrThrow(id);
+
+        validateCurrentStatus(order, OrderStatus.ACCEPTED, "Only ACCEPTED orders can move to PREPARING");
+
+        order.setOrderStatus(OrderStatus.PREPARING);
+        order.setPreparingAt(LocalDateTime.now());
+
+        Order savedOrder = orderRepository.save(order);
+
+        return mapToResponse(savedOrder, savedOrder.getOrderItems());
+    }
+
+    @Override
+    public OrderResponse markOutForDelivery(Long id) {
+
+        Order order = getOrderOrThrow(id);
+
+        validateCurrentStatus(order, OrderStatus.PREPARING, "Only PREPARING orders can move to OUT_FOR_DELIVERY");
+
+        order.setOrderStatus(OrderStatus.OUT_FOR_DELIVERY);
+        order.setOutForDeliveryAt(LocalDateTime.now());
+
+        if (order.getDeliveryPartner() != null) {
+            order.getDeliveryPartner().setStatus(DeliveryPartnerStatus.BUSY);
+            deliveryPartnerRepository.save(order.getDeliveryPartner());
+        }
+
+        Order savedOrder = orderRepository.save(order);
+
+        return mapToResponse(savedOrder, savedOrder.getOrderItems());
+    }
+
+    @Override
+    public OrderResponse markDelivered(Long id) {
+
+        Order order = getOrderOrThrow(id);
+
+        validateCurrentStatus(order, OrderStatus.OUT_FOR_DELIVERY, "Only OUT_FOR_DELIVERY orders can be delivered");
+
+        order.setOrderStatus(OrderStatus.DELIVERED);
+        order.setPaymentStatus(PaymentStatus.SUCCESS);
+        order.setDeliveredAt(LocalDateTime.now());
+
+        if (order.getDeliveryPartner() != null) {
+            order.getDeliveryPartner().setStatus(DeliveryPartnerStatus.AVAILABLE);
+            deliveryPartnerRepository.save(order.getDeliveryPartner());
+        }
+
+        Order savedOrder = orderRepository.save(order);
+
+        return mapToResponse(savedOrder, savedOrder.getOrderItems());
+    }
+
+    @Override
     public void delete(Long id) {
+
+        if (!orderRepository.existsById(id)) {
+            throw new EntityNotFoundException("Order not found");
+        }
+
         orderRepository.deleteById(id);
     }
 
-    // ---------------- mapping ----------------
+    private Order getOrderOrThrow(Long id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found"));
+    }
+
+    private void validateCurrentStatus(Order order, OrderStatus expectedStatus, String message) {
+
+        if (order.getOrderStatus() != expectedStatus) {
+            throw new IllegalArgumentException(
+                    message + ". Current status is " + order.getOrderStatus()
+            );
+        }
+    }
+
+    private void restoreStock(Order order) {
+
+        for (OrderItem orderItem : order.getOrderItems()) {
+            MenuItem menuItem = orderItem.getMenuItem();
+            menuItem.setStock(menuItem.getStock() + orderItem.getQuantity());
+            menuItemRepository.save(menuItem);
+        }
+    }
 
     private OrderResponse mapToResponse(Order order, List<OrderItem> items) {
 
@@ -135,6 +260,12 @@ public class OrderServiceImpl implements OrderService {
                 .totalAmount(order.getTotalAmount())
                 .orderStatus(order.getOrderStatus())
                 .paymentStatus(order.getPaymentStatus())
+                .acceptedAt(order.getAcceptedAt())
+                .preparingAt(order.getPreparingAt())
+                .outForDeliveryAt(order.getOutForDeliveryAt())
+                .deliveredAt(order.getDeliveredAt())
+                .rejectedAt(order.getRejectedAt())
+                .rejectionReason(order.getRejectionReason())
                 .items(itemResponses)
                 .build();
     }

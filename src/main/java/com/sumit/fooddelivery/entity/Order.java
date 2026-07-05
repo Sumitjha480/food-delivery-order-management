@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,12 +30,27 @@ public class Order extends BaseEntity {
     private DeliveryPartner deliveryPartner;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private OrderStatus orderStatus;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private PaymentStatus paymentStatus;
 
+    @Column(nullable = false)
     private BigDecimal totalAmount;
+
+    private LocalDateTime acceptedAt;
+
+    private LocalDateTime preparingAt;
+
+    private LocalDateTime outForDeliveryAt;
+
+    private LocalDateTime deliveredAt;
+
+    private LocalDateTime rejectedAt;
+
+    private String rejectionReason;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
     private List<OrderItem> orderItems = new ArrayList<>();

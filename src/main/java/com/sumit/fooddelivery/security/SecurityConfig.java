@@ -57,6 +57,24 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/orders")
                         .hasRole("CUSTOMER")
 
+                        // Restaurant owner handles restaurant-side order lifecycle
+                        .requestMatchers(HttpMethod.PATCH, "/orders/*/accept")
+                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER")
+
+                        .requestMatchers(HttpMethod.PATCH, "/orders/*/reject")
+                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER")
+
+                        .requestMatchers(HttpMethod.PATCH, "/orders/*/preparing")
+                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER")
+
+                        // Delivery partner handles delivery-side lifecycle
+                        .requestMatchers(HttpMethod.PATCH, "/orders/*/out-for-delivery")
+                        .hasAnyRole("ADMIN", "DELIVERY_PARTNER")
+
+                        .requestMatchers(HttpMethod.PATCH, "/orders/*/delivered")
+                        .hasAnyRole("ADMIN", "DELIVERY_PARTNER")
+
+
                         // Order viewing
                         .requestMatchers(HttpMethod.GET, "/orders/**")
                         .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
