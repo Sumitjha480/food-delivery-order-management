@@ -86,6 +86,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/orders/**")
                         .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
 
+                        .requestMatchers(HttpMethod.GET, "/orders/*/history")
+                        .hasAnyRole("ADMIN", "RESTAURANT_OWNER", "CUSTOMER", "DELIVERY_PARTNER")
+
                         .requestMatchers(HttpMethod.DELETE, "/orders/**")
                         .hasRole("ADMIN")
 

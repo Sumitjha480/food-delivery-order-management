@@ -2,6 +2,8 @@ package com.sumit.fooddelivery.service;
 
 import com.sumit.fooddelivery.dto.request.OrderRequest;
 import com.sumit.fooddelivery.dto.response.OrderResponse;
+import com.sumit.fooddelivery.dto.response.OrderStatusHistoryResponse;
+import com.sumit.fooddelivery.enums.OrderStatus;
 
 import java.util.List;
 
@@ -9,9 +11,16 @@ public interface OrderService {
 
     OrderResponse create(OrderRequest request);
 
-    List<OrderResponse> getAll();
+    List<OrderResponse> getAll(
+            OrderStatus status,
+            Long restaurantId,
+            Long customerId,
+            Long deliveryPartnerId
+    );
 
     OrderResponse getById(Long id);
+
+    List<OrderStatusHistoryResponse> getStatusHistory(Long id);
 
     OrderResponse accept(Long id);
 

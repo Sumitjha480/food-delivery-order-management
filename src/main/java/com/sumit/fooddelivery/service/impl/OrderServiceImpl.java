@@ -4,10 +4,14 @@ import com.sumit.fooddelivery.dto.request.OrderItemRequest;
 import com.sumit.fooddelivery.dto.request.OrderRequest;
 import com.sumit.fooddelivery.dto.response.OrderItemResponse;
 import com.sumit.fooddelivery.dto.response.OrderResponse;
+import com.sumit.fooddelivery.dto.response.OrderStatusHistoryResponse;
 import com.sumit.fooddelivery.entity.*;
 import com.sumit.fooddelivery.enums.DeliveryPartnerStatus;
 import com.sumit.fooddelivery.enums.OrderStatus;
 import com.sumit.fooddelivery.enums.PaymentStatus;
+import com.sumit.fooddelivery.enums.UserRole;
+import com.sumit.fooddelivery.event.DeliveryPartnerAssignedEvent;
+import com.sumit.fooddelivery.event.OrderStatusChangedEvent;
 import com.sumit.fooddelivery.payment.PaymentResult;
 import com.sumit.fooddelivery.repository.*;
 import com.sumit.fooddelivery.security.CurrentUserService;
@@ -15,9 +19,8 @@ import com.sumit.fooddelivery.service.OrderService;
 import com.sumit.fooddelivery.service.PaymentService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import com.sumit.fooddelivery.event.DeliveryPartnerAssignedEvent;
-import com.sumit.fooddelivery.event.OrderStatusChangedEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,16 +42,17 @@ public class OrderServiceImpl implements OrderService {
     private final DeliveryPartnerRepository deliveryPartnerRepository;
     private final MenuItemRepository menuItemRepository;
     private final OrderItemRepository orderItemRepository;
+    private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final PaymentService paymentService;
     private final ApplicationEventPublisher eventPublisher;
     private final CurrentUserService currentUserService;
-
 
     @Override
     public OrderResponse create(OrderRequest request) {
 
         Customer customer = customerRepository.findById(request.getCustomerId())
                 .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+
         currentUserService.requireAdminOrCustomer(customer);
 
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
@@ -120,6 +124,9 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepository.save(order);
         orderItemRepository.saveAll(orderItems);
+
+        recordStatusHistory(savedOrder, null, savedOrder.getOrderStatus(), "Order created");
+
         publishOrderStatusChanged(savedOrder, null);
 
         return mapToResponse(savedOrder, orderItems);
@@ -127,11 +134,67 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> getAll() {
-        return orderRepository.findAll()
-                .stream()
-                .map(order -> mapToResponse(order, order.getOrderItems()))
-                .toList();
+    public List<OrderResponse> getAll(
+            OrderStatus status,
+            Long restaurantId,
+            Long customerId,
+            Long deliveryPartnerId
+    ) {
+        User currentUser = currentUserService.getCurrentUser();
+
+        Long effectiveRestaurantId = restaurantId;
+        Long effectiveCustomerId = customerId;
+        Long effectiveDeliveryPartnerId = deliveryPartnerId;
+        String restaurantOwnerUsername = null;
+
+        if (currentUser.getRole() == UserRole.ADMIN) {
+            return searchAndMap(status, effectiveRestaurantId, effectiveCustomerId, effectiveDeliveryPartnerId, null);
+        }
+
+        if (currentUser.getRole() == UserRole.CUSTOMER) {
+            Customer currentCustomer = currentUserService.getCurrentCustomer();
+
+            if (customerId != null && !customerId.equals(currentCustomer.getId())) {
+                throw new AccessDeniedException("You can view only your own orders");
+            }
+
+            effectiveCustomerId = currentCustomer.getId();
+
+            return searchAndMap(status, effectiveRestaurantId, effectiveCustomerId, effectiveDeliveryPartnerId, null);
+        }
+
+        if (currentUser.getRole() == UserRole.RESTAURANT_OWNER) {
+            restaurantOwnerUsername = currentUser.getUsername();
+
+            if (restaurantId != null) {
+                Restaurant restaurant = restaurantRepository.findById(restaurantId)
+                        .orElseThrow(() -> new EntityNotFoundException("Restaurant not found"));
+
+                currentUserService.requireAdminOrRestaurantOwner(restaurant);
+            }
+
+            return searchAndMap(
+                    status,
+                    effectiveRestaurantId,
+                    effectiveCustomerId,
+                    effectiveDeliveryPartnerId,
+                    restaurantOwnerUsername
+            );
+        }
+
+        if (currentUser.getRole() == UserRole.DELIVERY_PARTNER) {
+            DeliveryPartner currentPartner = currentUserService.getCurrentDeliveryPartner();
+
+            if (deliveryPartnerId != null && !deliveryPartnerId.equals(currentPartner.getId())) {
+                throw new AccessDeniedException("You can view only your own assigned orders");
+            }
+
+            effectiveDeliveryPartnerId = currentPartner.getId();
+
+            return searchAndMap(status, effectiveRestaurantId, effectiveCustomerId, effectiveDeliveryPartnerId, null);
+        }
+
+        throw new AccessDeniedException("You do not have permission to view orders");
     }
 
     @Override
@@ -140,13 +203,30 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = getOrderOrThrow(id);
 
+        requireCanViewOrder(order);
+
         return mapToResponse(order, order.getOrderItems());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderStatusHistoryResponse> getStatusHistory(Long id) {
+
+        Order order = getOrderOrThrow(id);
+
+        requireCanViewOrder(order);
+
+        return orderStatusHistoryRepository.findByOrder_IdOrderByChangedAtAsc(id)
+                .stream()
+                .map(this::mapHistory)
+                .toList();
     }
 
     @Override
     public OrderResponse accept(Long id) {
 
         Order order = getOrderOrThrow(id);
+
         currentUserService.requireAdminOrRestaurantOwner(order.getRestaurant());
 
         OrderStatus oldStatus = order.getOrderStatus();
@@ -162,6 +242,8 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
+        recordStatusHistory(savedOrder, oldStatus, savedOrder.getOrderStatus(), "Order accepted by restaurant");
+
         publishOrderStatusChanged(savedOrder, oldStatus);
 
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
@@ -171,6 +253,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse reject(Long id, String reason) {
 
         Order order = getOrderOrThrow(id);
+
         currentUserService.requireAdminOrRestaurantOwner(order.getRestaurant());
 
         OrderStatus oldStatus = order.getOrderStatus();
@@ -195,6 +278,8 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
+        recordStatusHistory(savedOrder, oldStatus, savedOrder.getOrderStatus(), savedOrder.getRejectionReason());
+
         publishOrderStatusChanged(savedOrder, oldStatus);
 
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
@@ -204,7 +289,9 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse assignDeliveryPartner(Long orderId, Long deliveryPartnerId) {
 
         Order order = getOrderForUpdateOrThrow(orderId);
+
         currentUserService.requireAdminOrRestaurantOwner(order.getRestaurant());
+
         DeliveryPartner deliveryPartner = getDeliveryPartnerForUpdateOrThrow(deliveryPartnerId);
 
         validateOrderCanReceivePartner(order);
@@ -227,6 +314,7 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = getOrderForUpdateOrThrow(orderId);
         DeliveryPartner deliveryPartner = getDeliveryPartnerForUpdateOrThrow(deliveryPartnerId);
+
         currentUserService.requireAdminOrDeliveryPartner(deliveryPartner);
 
         validateOrderCanReceivePartner(order);
@@ -248,6 +336,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse markPreparing(Long id) {
 
         Order order = getOrderOrThrow(id);
+
         currentUserService.requireAdminOrRestaurantOwner(order.getRestaurant());
 
         OrderStatus oldStatus = order.getOrderStatus();
@@ -258,6 +347,8 @@ public class OrderServiceImpl implements OrderService {
         order.setPreparingAt(LocalDateTime.now());
 
         Order savedOrder = orderRepository.save(order);
+
+        recordStatusHistory(savedOrder, oldStatus, savedOrder.getOrderStatus(), "Restaurant started preparing order");
 
         publishOrderStatusChanged(savedOrder, oldStatus);
 
@@ -276,12 +367,15 @@ public class OrderServiceImpl implements OrderService {
         if (order.getDeliveryPartner() == null) {
             throw new IllegalArgumentException("Cannot mark order out for delivery without assigned delivery partner");
         }
+
         currentUserService.requireAdminOrDeliveryPartner(order.getDeliveryPartner());
 
         order.setOrderStatus(OrderStatus.OUT_FOR_DELIVERY);
         order.setOutForDeliveryAt(LocalDateTime.now());
 
         Order savedOrder = orderRepository.save(order);
+
+        recordStatusHistory(savedOrder, oldStatus, savedOrder.getOrderStatus(), "Order picked up by delivery partner");
 
         publishOrderStatusChanged(savedOrder, oldStatus);
 
@@ -311,11 +405,12 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
+        recordStatusHistory(savedOrder, oldStatus, savedOrder.getOrderStatus(), "Order delivered successfully");
+
         publishOrderStatusChanged(savedOrder, oldStatus);
 
         return mapToResponse(savedOrder, savedOrder.getOrderItems());
     }
-
 
     @Override
     public void delete(Long id) {
@@ -325,6 +420,66 @@ public class OrderServiceImpl implements OrderService {
         }
 
         orderRepository.deleteById(id);
+    }
+
+    private List<OrderResponse> searchAndMap(
+            OrderStatus status,
+            Long restaurantId,
+            Long customerId,
+            Long deliveryPartnerId,
+            String restaurantOwnerUsername
+    ) {
+        return orderRepository.searchOrders(
+                        status,
+                        restaurantId,
+                        customerId,
+                        deliveryPartnerId,
+                        restaurantOwnerUsername
+                )
+                .stream()
+                .map(order -> mapToResponse(order, order.getOrderItems()))
+                .toList();
+    }
+
+    private void requireCanViewOrder(Order order) {
+
+        if (currentUserService.hasRole(UserRole.ADMIN)) {
+            return;
+        }
+
+        User currentUser = currentUserService.getCurrentUser();
+
+        if (currentUser.getRole() == UserRole.CUSTOMER) {
+            Customer customer = order.getCustomer();
+
+            if (customer.getUser() == null || !customer.getUser().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("You can view only your own orders");
+            }
+
+            return;
+        }
+
+        if (currentUser.getRole() == UserRole.RESTAURANT_OWNER) {
+            Restaurant restaurant = order.getRestaurant();
+
+            if (restaurant.getOwner() == null || !restaurant.getOwner().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("You can view only orders for your own restaurant");
+            }
+
+            return;
+        }
+
+        if (currentUser.getRole() == UserRole.DELIVERY_PARTNER) {
+            DeliveryPartner partner = order.getDeliveryPartner();
+
+            if (partner == null || partner.getUser() == null || !partner.getUser().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("You can view only orders assigned to you");
+            }
+
+            return;
+        }
+
+        throw new AccessDeniedException("You do not have permission to view this order");
     }
 
     private Order getOrderOrThrow(Long id) {
@@ -375,6 +530,29 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    private void validatePartnerServicesRestaurantCity(Order order, DeliveryPartner deliveryPartner) {
+
+        City restaurantCity = order.getRestaurant().getCityEntity();
+        City partnerCity = deliveryPartner.getCity();
+
+        if (restaurantCity == null) {
+            throw new IllegalArgumentException("Restaurant city is not configured");
+        }
+
+        if (partnerCity == null) {
+            throw new IllegalArgumentException("Delivery partner city is not configured");
+        }
+
+        if (!restaurantCity.getId().equals(partnerCity.getId())) {
+            throw new IllegalArgumentException(
+                    "Delivery partner city does not match restaurant city. Restaurant city: "
+                            + restaurantCity.getName()
+                            + ", partner city: "
+                            + partnerCity.getName()
+            );
+        }
+    }
+
     private void restoreStock(Order order) {
 
         for (OrderItem orderItem : order.getOrderItems()) {
@@ -405,6 +583,62 @@ public class OrderServiceImpl implements OrderService {
                     return request;
                 })
                 .toList();
+    }
+
+    private void recordStatusHistory(
+            Order order,
+            OrderStatus oldStatus,
+            OrderStatus newStatus,
+            String note
+    ) {
+        String username;
+
+        try {
+            username = currentUserService.getCurrentUser().getUsername();
+        } catch (Exception ex) {
+            username = "system";
+        }
+
+        OrderStatusHistory history = new OrderStatusHistory();
+        history.setOrder(order);
+        history.setOldStatus(oldStatus);
+        history.setNewStatus(newStatus);
+        history.setChangedByUsername(username);
+        history.setNote(note);
+
+        orderStatusHistoryRepository.save(history);
+    }
+
+    private void publishOrderStatusChanged(Order order, OrderStatus oldStatus) {
+        eventPublisher.publishEvent(
+                new OrderStatusChangedEvent(
+                        order.getId(),
+                        oldStatus,
+                        order.getOrderStatus()
+                )
+        );
+    }
+
+    private void publishDeliveryPartnerAssigned(Order order, DeliveryPartner deliveryPartner) {
+        eventPublisher.publishEvent(
+                new DeliveryPartnerAssignedEvent(
+                        order.getId(),
+                        deliveryPartner.getId()
+                )
+        );
+    }
+
+    private OrderStatusHistoryResponse mapHistory(OrderStatusHistory history) {
+
+        return OrderStatusHistoryResponse.builder()
+                .id(history.getId())
+                .orderId(history.getOrder().getId())
+                .oldStatus(history.getOldStatus())
+                .newStatus(history.getNewStatus())
+                .changedByUsername(history.getChangedByUsername())
+                .note(history.getNote())
+                .changedAt(history.getChangedAt())
+                .build();
     }
 
     private OrderResponse mapToResponse(Order order, List<OrderItem> items) {
@@ -442,47 +676,4 @@ public class OrderServiceImpl implements OrderService {
                 .items(itemResponses)
                 .build();
     }
-
-    private void publishOrderStatusChanged(Order order, OrderStatus oldStatus) {
-        eventPublisher.publishEvent(
-                new OrderStatusChangedEvent(
-                        order.getId(),
-                        oldStatus,
-                        order.getOrderStatus()
-                )
-        );
-    }
-
-    private void publishDeliveryPartnerAssigned(Order order, DeliveryPartner deliveryPartner) {
-        eventPublisher.publishEvent(
-                new DeliveryPartnerAssignedEvent(
-                        order.getId(),
-                        deliveryPartner.getId()
-                )
-        );
-    }
-
-    private void validatePartnerServicesRestaurantCity(Order order, DeliveryPartner deliveryPartner) {
-
-        City restaurantCity = order.getRestaurant().getCityEntity();
-        City partnerCity = deliveryPartner.getCity();
-
-        if (restaurantCity == null) {
-            throw new IllegalArgumentException("Restaurant city is not configured");
-        }
-
-        if (partnerCity == null) {
-            throw new IllegalArgumentException("Delivery partner city is not configured");
-        }
-
-        if (!restaurantCity.getId().equals(partnerCity.getId())) {
-            throw new IllegalArgumentException(
-                    "Delivery partner city does not match restaurant city. Restaurant city: "
-                            + restaurantCity.getName()
-                            + ", partner city: "
-                            + partnerCity.getName()
-            );
-        }
-    }
-
 }

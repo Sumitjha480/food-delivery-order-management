@@ -4,6 +4,8 @@ import com.sumit.fooddelivery.dto.request.AssignDeliveryPartnerRequest;
 import com.sumit.fooddelivery.dto.request.OrderRequest;
 import com.sumit.fooddelivery.dto.request.RejectOrderRequest;
 import com.sumit.fooddelivery.dto.response.OrderResponse;
+import com.sumit.fooddelivery.dto.response.OrderStatusHistoryResponse;
+import com.sumit.fooddelivery.enums.OrderStatus;
 import com.sumit.fooddelivery.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,13 +26,23 @@ public class OrderController {
     }
 
     @GetMapping
-    public List<OrderResponse> getAll() {
-        return orderService.getAll();
+    public List<OrderResponse> getAll(
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) Long restaurantId,
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) Long deliveryPartnerId
+    ) {
+        return orderService.getAll(status, restaurantId, customerId, deliveryPartnerId);
     }
 
     @GetMapping("/{id}")
     public OrderResponse getById(@PathVariable Long id) {
         return orderService.getById(id);
+    }
+
+    @GetMapping("/{id}/history")
+    public List<OrderStatusHistoryResponse> getStatusHistory(@PathVariable Long id) {
+        return orderService.getStatusHistory(id);
     }
 
     @PatchMapping("/{id}/accept")
